@@ -1,0 +1,319 @@
+{% extends "_layout.html" %}
+{% block title %}Subscribe, Equity Research Hub{% endblock %}
+{% block content %}
+  <section class="hero subscribe-hero">
+    <div class="hero-inner">
+      <p class="eyebrow">Choose your level of access</p>
+      <h2 class="hero-title">Pick the plan that fits how you research.</h2>
+      <p class="hero-lede">Free lets you try the app and see what it does. Paid plans give you the full picture so you can make a real decision before you invest.</p>
+    </div>
+  </section>
+
+  {% if not user %}
+    <div class="info-banner">
+      <a href="{{ url_for('signup_page') }}">Sign up free</a> to subscribe. You need an account so we can keep track of your plan.
+    </div>
+  {% endif %}
+
+  {% if show_lifetime_offer %}
+    <section class="lifetime-banner" id="lifetimeBanner">
+      <div class="lifetime-glow"></div>
+      <div class="lifetime-content">
+        <p class="lifetime-eyebrow"><span class="pulse-dot"></span> Founding Member, One-Time Offer, First Visit Only</p>
+        <h3 class="lifetime-title">${{ "%.0f"|format(lifetime_price) }} once. Patron access <em>forever</em>.</h3>
+        <p class="lifetime-lede">You're seeing this because it's your first time on this page. <strong>The moment you click off, anywhere else on the site, this offer is gone for good.</strong> No emails, no second chances, no "we'll bring it back."</p>
+
+        <div class="lifetime-perks">
+          <div class="lifetime-perk">
+            <div class="lifetime-perk-num">01</div>
+            <div>
+              <p class="lifetime-perk-title">Pay once, never again</p>
+              <p class="lifetime-perk-body">You get Patron, our top plan, with every feature we have now and every feature we add later. No monthly bills. No price increases.</p>
+            </div>
+          </div>
+          <div class="lifetime-perk">
+            <div class="lifetime-perk-num">02</div>
+            <div>
+              <p class="lifetime-perk-title">Founder badge</p>
+              <p class="lifetime-perk-body">A permanent mark on your profile that shows you supported the app from day one.</p>
+            </div>
+          </div>
+          <div class="lifetime-perk">
+            <div class="lifetime-perk-num">03</div>
+            <div>
+              <p class="lifetime-perk-title">Direct line to us</p>
+              <p class="lifetime-perk-body">Access to the founders' chat for product feedback. Features you ask for get worked on first.</p>
+            </div>
+          </div>
+          <div class="lifetime-perk">
+            <div class="lifetime-perk-num">04</div>
+            <div>
+              <p class="lifetime-perk-title">The math is simple</p>
+              <p class="lifetime-perk-body">Patron costs ${{ "%.2f"|format(plans.patron.monthly) }} a month. After about <strong>{{ ((lifetime_price / plans.patron.monthly)|int) }} months</strong> you'd have already spent more than the lifetime price. Every month after that is money saved.</p>
+            </div>
+          </div>
+        </div>
+
+        <button type="button" class="btn-lifetime" data-plan="lifetime">
+          <span>Claim Lifetime Access, ${{ "%.0f"|format(lifetime_price) }} once</span>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
+        </button>
+        <p class="lifetime-fineprint">This card disappears with one click. We mean it.</p>
+      </div>
+    </section>
+  {% endif %}
+
+  <section class="billing-toggle-wrap">
+    <div class="billing-toggle" data-active="monthly">
+      <button type="button" class="billing-option active" data-cycle="monthly">Monthly</button>
+      <button type="button" class="billing-option" data-cycle="yearly">Yearly <span class="save-badge">Save up to 25%</span></button>
+    </div>
+  </section>
+
+  <section class="tier-grid">
+    <article class="tier-card tier-free">
+      <header class="tier-header">
+        <h3 class="tier-name">Free</h3>
+        <p class="tier-tagline">Try the app before you pay anything.</p>
+      </header>
+      <div class="tier-price">
+        <span class="tier-price-num">$0</span>
+        <span class="tier-price-cycle">forever</span>
+      </div>
+      <p class="tier-cta-note">No credit card. Sign up takes 30 seconds.</p>
+      <ul class="tier-features">
+        <li>Look up <strong>{{ free_daily_lookups }}</strong> stocks per day</li>
+        <li>Save up to <strong>{{ free_watchlist_limit }}</strong> stocks to your watchlist</li>
+        <li>Company info and current stock price</li>
+        <li>Yearly revenue and profit</li>
+        <li>The most common stock ratios (like P/E)</li>
+      </ul>
+      <p class="tier-locked-heading">Not included:</p>
+      <ul class="tier-features tier-features-locked">
+        <li>The 12-month price chart</li>
+        <li>Full financial statements</li>
+        <li>Documents the company filed with the SEC</li>
+        <li>News and what professional analysts think</li>
+        <li>Lawsuits and other big company events</li>
+        <li>Which big funds own the stock</li>
+      </ul>
+      <div class="tier-cta">
+        {% if user and user.effective_tier == 'free' %}
+          <span class="tier-current">Your current plan</span>
+        {% elif not user %}
+          <a href="{{ url_for('signup_page') }}" class="btn-secondary">Sign up free</a>
+        {% else %}
+          <span class="muted">—</span>
+        {% endif %}
+      </div>
+    </article>
+
+    <article class="tier-card tier-apprentice">
+      <header class="tier-header">
+        <h3 class="tier-name">Apprentice</h3>
+        <p class="tier-tagline">Get the real numbers on every stock you check.</p>
+      </header>
+      <div class="tier-price">
+        <span class="tier-price-num"
+              data-monthly="${{ '%.2f'|format(plans.apprentice.monthly) }}"
+              data-yearly="${{ '%.2f'|format(plans.apprentice.yearly / 12) }}">${{ '%.2f'|format(plans.apprentice.monthly) }}</span>
+        <span class="tier-price-cycle">/ month</span>
+      </div>
+      <p class="tier-cta-note"
+         data-monthly="Billed monthly. Cancel anytime."
+         data-yearly="Billed ${{ '%.0f'|format(plans.apprentice.yearly) }}/year. Save {{ ((1 - (plans.apprentice.yearly / (plans.apprentice.monthly * 12))) * 100)|round|int }}%.">Billed monthly. Cancel anytime.</p>
+      <ul class="tier-features">
+        <li><strong>Unlimited</strong> stock lookups per day</li>
+        <li><strong>Unlimited</strong> stocks saved to your watchlist</li>
+        <li>Full financial statements (income, balance sheet, cash flow)</li>
+        <li>12-month price chart that shows the price when you hover</li>
+        <li>The company's yearly 10-K report (linked straight to the SEC)</li>
+        <li>Latest news for each company</li>
+        <li>All the standard stock ratios and metrics</li>
+      </ul>
+      <p class="tier-why"><strong>Why pay?</strong> Free shows you the basics. Apprentice shows you the real numbers, straight from the company's own reports.</p>
+      <div class="tier-cta">
+        <button type="button" class="btn-primary tier-subscribe" data-plan="apprentice"{% if not user %} disabled{% endif %}>
+          {% if user and user.effective_tier == 'apprentice' %}Current plan
+          {% elif not user %}Sign up first
+          {% else %}Choose Apprentice{% endif %}
+        </button>
+      </div>
+    </article>
+
+    <article class="tier-card tier-patron tier-card-featured">
+      <span class="tier-badge-recommended">Most Recommended</span>
+      <header class="tier-header">
+        <h3 class="tier-name">Patron</h3>
+        <p class="tier-tagline">Everything we offer, with no limits.</p>
+      </header>
+      <div class="tier-price">
+        <span class="tier-price-num"
+              data-monthly="${{ '%.2f'|format(plans.patron.monthly) }}"
+              data-yearly="${{ '%.2f'|format(plans.patron.yearly / 12) }}">${{ '%.2f'|format(plans.patron.monthly) }}</span>
+        <span class="tier-price-cycle">/ month</span>
+      </div>
+      <p class="tier-cta-note"
+         data-monthly="Billed monthly. Cancel anytime."
+         data-yearly="Billed ${{ '%.0f'|format(plans.patron.yearly) }}/year. Save {{ ((1 - (plans.patron.yearly / (plans.patron.monthly * 12))) * 100)|round|int }}%.">Billed monthly. Cancel anytime.</p>
+      <ul class="tier-features">
+        <li><strong>Everything in Apprentice, plus:</strong></li>
+        <li>All SEC filings (yearly, quarterly, proxy votes, and more)</li>
+        <li>Big events like lawsuits and accounting changes (from 8-K filings)</li>
+        <li>Which big investment funds own the most shares</li>
+        <li>What Wall Street analysts say the stock is worth</li>
+        <li>Your own private notes on every stock you save</li>
+        <li>Faster price updates while the market is open</li>
+        <li>Access to the private community of paying members</li>
+      </ul>
+      <p class="tier-why"><strong>Why pay?</strong> Big problems often show up in a company's SEC filings before the news writes about them. Patron is how you spot those things first.</p>
+      <div class="tier-cta">
+        <button type="button" class="btn-primary tier-subscribe" data-plan="patron"{% if not user %} disabled{% endif %}>
+          {% if user and user.effective_tier == 'patron' %}Current plan
+          {% elif not user %}Sign up first
+          {% else %}Choose Patron{% endif %}
+        </button>
+      </div>
+    </article>
+  </section>
+
+  <section class="subscribe-faq">
+    <h3 class="subscribe-faq-title">Common questions</h3>
+    <details>
+      <summary>Why pay when Yahoo Finance is free?</summary>
+      <p>Free websites usually show you a number but make it hard to find where it came from. Equity Research Hub takes you straight to the actual document the company filed with the SEC. Paid plans also show you 8-K filings, which is where companies announce things like lawsuits and accounting changes, plus what professional analysts think. Other paid sites charge a lot more for the same info.</p>
+    </details>
+    <details>
+      <summary>Can I cancel?</summary>
+      <p>Yes. One click in your Account settings. If you pay monthly, you keep access until the end of the month you paid for. If you pay yearly, you keep access for the full year you paid for.</p>
+    </details>
+    <details>
+      <summary>What's the lifetime offer?</summary>
+      <p>It's a one-time price you only see the first time you visit this page. If you take it, you get our top plan (Patron) for life, plus a founder badge, for a lot less than paying every month. Once you leave this page, the offer is gone and we won't bring it back.</p>
+    </details>
+    <details>
+      <summary>Is this investment advice?</summary>
+      <p>No. This is a research tool. We pull together public information from the SEC and other places so you can do your own homework. Any choice to buy or sell is yours, and we suggest talking to a licensed financial advisor before you invest in anything.</p>
+    </details>
+  </section>
+
+  <div class="subscribe-modal-backdrop hidden" id="subscribeModal">
+    <div class="subscribe-modal">
+      <h3 id="modalTitle">Confirm subscription</h3>
+      <p id="modalBody">You're about to subscribe.</p>
+      <p class="subscribe-modal-note">This is a demo. No real charge will be made. In a real launch, this would go through Stripe.</p>
+      <div class="subscribe-modal-actions">
+        <button type="button" class="btn-secondary" id="modalCancel">Cancel</button>
+        <button type="button" class="btn-primary" id="modalConfirm">Confirm</button>
+      </div>
+    </div>
+  </div>
+{% endblock %}
+{% block scripts %}
+  <script>
+    (function () {
+      // Billing toggle
+      const toggle = document.querySelector('.billing-toggle');
+      let currentCycle = 'monthly';
+      if (toggle) {
+        toggle.querySelectorAll('.billing-option').forEach(b => {
+          b.addEventListener('click', () => {
+            toggle.querySelectorAll('.billing-option').forEach(o => o.classList.remove('active'));
+            b.classList.add('active');
+            currentCycle = b.dataset.cycle;
+            toggle.dataset.active = currentCycle;
+            document.querySelectorAll('.tier-price-num[data-monthly]').forEach(el => {
+              el.textContent = currentCycle === 'yearly' ? el.dataset.yearly : el.dataset.monthly;
+            });
+            document.querySelectorAll('.tier-cta-note[data-monthly]').forEach(el => {
+              el.textContent = currentCycle === 'yearly' ? el.dataset.yearly : el.dataset.monthly;
+            });
+          });
+        });
+      }
+
+      // Modal
+      const modal = document.getElementById('subscribeModal');
+      const modalTitle = document.getElementById('modalTitle');
+      const modalBody = document.getElementById('modalBody');
+      const modalConfirm = document.getElementById('modalConfirm');
+      const modalCancel = document.getElementById('modalCancel');
+      let pending = null;
+
+      function openModal(plan) {
+        pending = plan;
+        if (plan.plan === 'lifetime') {
+          modalTitle.textContent = 'Claim Lifetime Access';
+          modalBody.innerHTML = `One-time payment of <strong>$${plan.price}</strong>. Patron tier forever — no renewals, no price hikes.`;
+          modalConfirm.textContent = `Pay $${plan.price}`;
+        } else {
+          const planName = plan.plan === 'patron' ? 'Patron' : 'Apprentice';
+          modalTitle.textContent = `Subscribe to ${planName}`;
+          modalBody.innerHTML = `<strong>${planName}</strong> — ${plan.cycle === 'yearly' ? `$${plan.yearlyPrice}/year` : `$${plan.monthlyPrice}/month`}. ${plan.cycle === 'monthly' ? 'Cancel anytime.' : 'Save vs. monthly.'}`;
+          modalConfirm.textContent = 'Confirm subscription';
+        }
+        modal.classList.remove('hidden');
+      }
+      function closeModal() {
+        modal.classList.add('hidden');
+        pending = null;
+      }
+      modalCancel.addEventListener('click', closeModal);
+      modal.addEventListener('click', (e) => { if (e.target === modal) closeModal(); });
+
+      modalConfirm.addEventListener('click', async () => {
+        if (!pending) return;
+        modalConfirm.disabled = true;
+        modalConfirm.textContent = 'Processing…';
+        try {
+          const res = await fetch('/api/subscribe', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({plan: pending.plan, cycle: pending.cycle}),
+          });
+          const data = await res.json();
+          if (data.checkoutUrl) {
+            modalConfirm.textContent = 'Redirecting to Stripe…';
+            window.location.href = data.checkoutUrl;
+          } else if (data.success) {
+            modalConfirm.textContent = 'Done!';
+            setTimeout(() => location.reload(), 600);
+          } else {
+            alert(data.error || 'Subscription failed.');
+            closeModal();
+            modalConfirm.disabled = false;
+          }
+        } catch (e) {
+          alert('Network error: ' + e.message);
+          closeModal();
+          modalConfirm.disabled = false;
+        }
+      });
+
+      // Subscribe buttons
+      document.querySelectorAll('.tier-subscribe').forEach(btn => {
+        btn.addEventListener('click', () => {
+          if (btn.disabled) return;
+          const plan = btn.dataset.plan;
+          const planData = {
+            apprentice: { monthly: {{ plans.apprentice.monthly }}, yearly: {{ plans.apprentice.yearly }} },
+            patron:     { monthly: {{ plans.patron.monthly }}, yearly: {{ plans.patron.yearly }} },
+          }[plan];
+          openModal({
+            plan, cycle: currentCycle,
+            monthlyPrice: planData.monthly.toFixed(2),
+            yearlyPrice: planData.yearly.toFixed(0),
+          });
+        });
+      });
+
+      // Lifetime button
+      const lifetimeBtn = document.querySelector('.btn-lifetime');
+      if (lifetimeBtn) {
+        lifetimeBtn.addEventListener('click', () => {
+          openModal({ plan: 'lifetime', cycle: 'lifetime', price: {{ lifetime_price|int }} });
+        });
+      }
+    })();
+  </script>
+{% endblock %}

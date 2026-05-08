@@ -1,0 +1,82 @@
+{% extends "_layout.html" %}
+{% block title %}Account, Equity Research Hub{% endblock %}
+{% block content %}
+  <section class="hero account-hero">
+    <div class="hero-inner">
+      <p class="eyebrow">Your account</p>
+      <h2 class="hero-title">Settings and subscription</h2>
+    </div>
+  </section>
+
+  <div class="account-page">
+    <div class="account-card">
+      <h3 class="account-section-title">Profile</h3>
+      <dl class="account-list">
+        <dt>Email</dt><dd>{{ user.email }}</dd>
+        <dt>Display name</dt><dd>{{ user.display_name or '—' }}</dd>
+        <dt>Member since</dt><dd>{{ user.created_at[:10] }}</dd>
+      </dl>
+    </div>
+
+    <div class="account-card">
+      <h3 class="account-section-title">Subscription</h3>
+      <dl class="account-list">
+        <dt>Current tier</dt>
+        <dd>
+          <span class="tier-badge tier-{{ user.effective_tier }}{% if user.is_owner %} tier-owner{% endif %}{% if user.lifetime %} tier-lifetime{% endif %}">
+            {%- if user.is_owner -%}Owner, Free Patron Access
+            {%- elif user.lifetime -%}Patron · Lifetime
+            {%- else -%}{{ user.effective_tier|capitalize }}{%- endif -%}
+          </span>
+        </dd>
+        {% if user.billing_cycle %}
+          <dt>Billing</dt><dd>{{ user.billing_cycle|capitalize }}</dd>
+        {% endif %}
+        {% if user.subscription_until and not user.lifetime %}
+          <dt>Renews / expires</dt><dd>{{ user.subscription_until[:10] }}</dd>
+        {% endif %}
+      </dl>
+
+      <div class="account-actions">
+        {% if user.is_owner %}
+          <p class="muted">Owner accounts always have free Patron access. No billing.</p>
+        {% elif user.lifetime %}
+          <p class="muted">You have lifetime access. Nothing to renew, nothing to cancel.</p>
+        {% elif user.effective_tier == 'free' %}
+          <a href="{{ url_for('subscribe_page') }}" class="btn-primary">Upgrade plan</a>
+          <p class="muted account-actions-hint">Unlock all SEC filings, charts, news, and analyst data.</p>
+        {% else %}
+          <a href="{{ url_for('subscribe_page') }}" class="btn-secondary">Change plan</a>
+          {% if stripe_enabled and user.stripe_customer_id %}
+            <form action="{{ url_for('stripe_portal') }}" method="POST" style="display:inline">
+              <button type="submit" class="btn-secondary">Manage billing</button>
+            </form>
+          {% else %}
+            <form action="{{ url_for('cancel_subscription') }}" method="POST" onsubmit="return confirm('Cancel subscription? You will move to free tier at the end of the period.')" style="display:inline">
+              <button type="submit" class="btn-text-danger">Cancel subscription</button>
+            </form>
+          {% endif %}
+        {% endif %}
+      </div>
+    </div>
+
+    <div class="account-card account-card-affiliate">
+      <h3 class="account-section-title">Affiliate program</h3>
+      <p class="affiliate-card-blurb">Share Equity Research Hub and earn <strong>30% commission</strong> for 12 months on every paying customer you bring in. Your link tracks clicks, sign-ups, and paid customers automatically.</p>
+      {% if user.referral_code %}
+        <div class="affiliate-card-stat">
+          <span class="affiliate-card-code-label">Your code</span>
+          <span class="affiliate-card-code">{{ user.referral_code }}</span>
+        </div>
+      {% endif %}
+      <a href="{{ url_for('affiliate_page') }}" class="btn-primary">Open affiliate dashboard →</a>
+    </div>
+
+    <div class="account-card">
+      <h3 class="account-section-title">Sign out</h3>
+      <form action="{{ url_for('logout') }}" method="POST">
+        <button type="submit" class="btn-secondary">Sign out</button>
+      </form>
+    </div>
+  </div>
+{% endblock %}

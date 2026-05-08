@@ -1,0 +1,121 @@
+{% extends "_layout.html" %}
+{% block title %}Alerts, Equity Research Hub{% endblock %}
+{% block content %}
+  <section class="hero">
+    <div class="hero-inner">
+      <p class="eyebrow">Custom alerts</p>
+      <h2 class="hero-title">Tell us when to ping you.</h2>
+      <p class="hero-lede">Set a price target, a P/E threshold, or a volume spike. We check your alerts when you next look up the stock and mark them triggered so you do not miss the move.</p>
+    </div>
+  </section>
+
+  <section class="affiliate-section">
+    <div class="affiliate-section-header">
+      <h3 class="section-title">New alert</h3>
+    </div>
+    <form id="newAlertForm" class="alert-form">
+      <div class="alert-form-grid">
+        <div class="auth-field">
+          <label for="alertTicker">Ticker</label>
+          <input id="alertTicker" name="ticker" type="text" placeholder="AAPL" required maxlength="10" style="text-transform:uppercase;">
+        </div>
+        <div class="auth-field">
+          <label for="alertKind">Trigger</label>
+          <select id="alertKind" name="kind" required>
+            <option value="price_above">Price goes above</option>
+            <option value="price_below">Price drops below</option>
+            <option value="pe_below">P/E ratio drops below</option>
+            <option value="volume_above">Volume spike above</option>
+          </select>
+        </div>
+        <div class="auth-field">
+          <label for="alertThreshold">Threshold</label>
+          <input id="alertThreshold" name="threshold" type="number" step="any" placeholder="180.50" required>
+        </div>
+        <div class="auth-field">
+          <label for="alertNote">Note <span class="muted">(optional)</span></label>
+          <input id="alertNote" name="note" type="text" placeholder="Why are you watching this?" maxlength="200">
+        </div>
+      </div>
+      <button type="submit" class="btn-primary">Create alert</button>
+    </form>
+  </section>
+
+  <section class="affiliate-section">
+    <div class="affiliate-section-header">
+      <h3 class="section-title">Your alerts</h3>
+      <span class="section-subtitle">{{ alerts|length }} total</span>
+    </div>
+    {% if alerts %}
+      <table class="affiliate-table">
+        <thead>
+          <tr>
+            <th>Ticker</th>
+            <th>Trigger</th>
+            <th class="right">Threshold</th>
+            <th>Note</th>
+            <th>Status</th>
+            <th>Created</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for a in alerts %}
+            <tr data-id="{{ a.id }}">
+              <td><strong>{{ a.ticker }}</strong></td>
+              <td>
+                {% if a.kind == 'price_above' %}Price goes above
+                {% elif a.kind == 'price_below' %}Price drops below
+                {% elif a.kind == 'pe_below' %}P/E drops below
+                {% elif a.kind == 'volume_above' %}Volume spike above{% endif %}
+              </td>
+              <td class="right mono">
+                {% if a.kind in ['price_above','price_below'] %}${{ "%.2f"|format(a.threshold) }}
+                {% elif a.kind == 'volume_above' %}{{ "{:,}".format(a.threshold|int) }}
+                {% else %}{{ "%.2f"|format(a.threshold) }}{% endif %}
+              </td>
+              <td>{{ a.note or '—' }}</td>
+              <td><span class="status-pill status-{% if a.status == 'active' %}pending{% elif a.status == 'triggered' %}paid{% else %}reversed{% endif %}">{{ a.status|capitalize }}</span></td>
+              <td class="mono muted">{{ a.created_at[:10] }}</td>
+              <td><button type="button" class="btn-tiny delete-alert" data-id="{{ a.id }}">Delete</button></td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    {% else %}
+      <div class="empty-state empty-state-compact">
+        <p>No alerts yet. Create one above to get notified when a stock hits your level.</p>
+      </div>
+    {% endif %}
+  </section>
+{% endblock %}
+{% block scripts %}
+<script>
+document.getElementById('newAlertForm').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const form = e.target;
+  const data = {
+    ticker: form.ticker.value.trim().toUpperCase(),
+    kind: form.kind.value,
+    threshold: parseFloat(form.threshold.value),
+    note: form.note.value.trim(),
+  };
+  const res = await fetch('/api/alerts', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify(data),
+  });
+  const result = await res.json();
+  if (result.success) location.reload();
+  else alert(result.error || 'Could not save alert.');
+});
+document.querySelectorAll('.delete-alert').forEach(btn => {
+  btn.addEventListener('click', async () => {
+    if (!confirm('Delete this alert?')) return;
+    const id = btn.dataset.id;
+    const res = await fetch('/api/alerts/' + id, {method: 'DELETE'});
+    if (res.ok) document.querySelector(`tr[data-id="${id}"]`).remove();
+  });
+});
+</script>
+{% endblock %}

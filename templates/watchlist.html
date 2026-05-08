@@ -1,0 +1,109 @@
+{% extends "_layout.html" %}
+{% block title %}Watchlist, Equity Research Hub{% endblock %}
+{% block content %}
+  <section class="hero watchlist-hero">
+    <div class="hero-inner">
+      <p class="eyebrow">Your saved stocks</p>
+      <h2 class="hero-title">Watchlist</h2>
+      <p class="hero-lede">Stocks you're following. Click any one to look it up again.</p>
+    </div>
+  </section>
+
+  {% if user.effective_tier == 'free' %}
+    <div class="info-banner">
+      Free tier saves up to <strong>{{ free_limit }}</strong> stocks ({{ watchlist|length }}/{{ free_limit }} used). <a href="{{ url_for('subscribe_page') }}">Upgrade for unlimited.</a>
+    </div>
+  {% endif %}
+
+  {% if not watchlist %}
+    <div class="empty-state">
+      <div class="empty-icon">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M19 21V5a2 2 0 0 0-2-2H7a2 2 0 0 0-2 2v16l7-3 7 3z"/></svg>
+      </div>
+      <h3>No saved stocks yet</h3>
+      <p>Look up a company and click <strong>Save to watchlist</strong> on the result. Your list will show up here.</p>
+      <a href="{{ url_for('index') }}" class="btn-primary">Research a stock</a>
+    </div>
+  {% else %}
+    <div class="watchlist-grid" id="watchlistGrid">
+      {% for item in watchlist %}
+        <article class="watchlist-card" data-ticker="{{ item.ticker }}">
+          <div class="watchlist-card-header">
+            <a href="{{ url_for('index') }}?ticker={{ item.ticker }}" class="watchlist-ticker">{{ item.ticker }}</a>
+            <button type="button" class="watchlist-remove" data-ticker="{{ item.ticker }}" aria-label="Remove {{ item.ticker }}">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+            </button>
+          </div>
+          <p class="watchlist-meta">Added {{ item.added_at[:10] }}</p>
+          {% if item.shares and item.shares > 0 %}
+            <div class="watchlist-position">
+              <span class="position-label">Position</span>
+              <span class="position-detail">{{ "%.4f"|format(item.shares) }} shares{% if item.avg_cost %} @ ${{ "%.2f"|format(item.avg_cost) }}{% endif %}</span>
+            </div>
+          {% endif %}
+          {% if item.notes %}
+            <p class="watchlist-notes">{{ item.notes }}</p>
+          {% else %}
+            <p class="watchlist-notes muted">No notes yet.</p>
+          {% endif %}
+          <div class="watchlist-actions">
+            <a href="{{ url_for('index') }}?ticker={{ item.ticker }}" class="watchlist-research-link">Research →</a>
+            <button type="button" class="btn-tiny edit-position" data-ticker="{{ item.ticker }}" data-shares="{{ item.shares or '' }}" data-avg-cost="{{ item.avg_cost or '' }}" data-notes="{{ item.notes or '' }}">{% if item.shares %}Edit position{% else %}Add position{% endif %}</button>
+          </div>
+        </article>
+      {% endfor %}
+    </div>
+  {% endif %}
+{% endblock %}
+{% block scripts %}
+  <script>
+    document.querySelectorAll('.watchlist-remove').forEach(btn => {
+      btn.addEventListener('click', async (e) => {
+        e.preventDefault();
+        const ticker = btn.dataset.ticker;
+        if (!confirm(`Remove ${ticker} from your watchlist?`)) return;
+        try {
+          const res = await fetch('/api/watchlist/remove', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({ticker}),
+          });
+          const data = await res.json();
+          if (data.success) {
+            const card = btn.closest('.watchlist-card');
+            card.style.transition = 'opacity .2s, transform .2s';
+            card.style.opacity = '0';
+            card.style.transform = 'scale(0.95)';
+            setTimeout(() => location.reload(), 200);
+          } else {
+            alert(data.error || 'Could not remove.');
+          }
+        } catch (e) { alert('Network error: ' + e.message); }
+      });
+    });
+
+    document.querySelectorAll('.edit-position').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        const ticker = btn.dataset.ticker;
+        const currentShares = btn.dataset.shares || '';
+        const currentCost = btn.dataset.avgCost || '';
+        const sharesStr = prompt(`Shares of ${ticker}? (leave blank to keep tracked but no position)`, currentShares);
+        if (sharesStr === null) return;
+        const costStr = prompt(`Average cost per share for ${ticker}? (leave blank if unknown)`, currentCost);
+        if (costStr === null) return;
+        const shares = sharesStr === '' ? null : parseFloat(sharesStr);
+        const avgCost = costStr === '' ? null : parseFloat(costStr);
+        if (shares !== null && (isNaN(shares) || shares < 0)) { alert('Shares must be a positive number.'); return; }
+        if (avgCost !== null && (isNaN(avgCost) || avgCost < 0)) { alert('Cost must be a positive number.'); return; }
+        const res = await fetch('/api/watchlist/position', {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({ticker, shares, avgCost}),
+        });
+        const data = await res.json();
+        if (data.success) location.reload();
+        else alert(data.error || 'Could not save position.');
+      });
+    });
+  </script>
+{% endblock %}

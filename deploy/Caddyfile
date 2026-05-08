@@ -1,0 +1,35 @@
+# Replace yourdomain.com with your actual domain
+yourdomain.com {
+    reverse_proxy 127.0.0.1:8000
+
+    encode gzip zstd
+
+    # Security headers
+    header {
+        Strict-Transport-Security "max-age=31536000; includeSubDomains"
+        X-Content-Type-Options "nosniff"
+        X-Frame-Options "DENY"
+        Referrer-Policy "strict-origin-when-cross-origin"
+        Permissions-Policy "geolocation=(), microphone=(), camera=()"
+        -Server
+    }
+
+    # Stripe webhooks need the raw body, route them with no buffering
+    handle /stripe/webhook {
+        reverse_proxy 127.0.0.1:8000 {
+            flush_interval -1
+        }
+    }
+
+    # Cache static assets
+    @static path /static/*
+    header @static Cache-Control "public, max-age=604800"
+
+    # Log to file
+    log {
+        output file /var/log/caddy/erh.log {
+            roll_size 50mb
+            roll_keep 10
+        }
+    }
+}

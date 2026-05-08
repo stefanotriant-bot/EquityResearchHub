@@ -1,0 +1,23 @@
+[Unit]
+Description=Equity Research Hub Flask App
+After=network.target
+
+[Service]
+Type=simple
+User=erh
+Group=erh
+WorkingDirectory=/home/erh/EquityResearchHub
+Environment="PATH=/home/erh/EquityResearchHub/venv/bin"
+EnvironmentFile=/home/erh/EquityResearchHub/.env
+ExecStart=/home/erh/EquityResearchHub/venv/bin/gunicorn \
+    --workers 3 \
+    --bind 127.0.0.1:8000 \
+    --access-logfile - \
+    --error-logfile - \
+    --timeout 60 \
+    app:app
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

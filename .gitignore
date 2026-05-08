@@ -1,0 +1,24 @@
+# Secrets
+.env
+
+# SQLite database
+*.db
+*.db-journal
+
+# Python
+__pycache__/
+*.pyc
+venv/
+.venv/
+
+# Editors
+.vscode/
+.idea/
+*.swp
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Backups
+backups/

@@ -1,0 +1,229 @@
+{% extends "_layout.html" %}
+{% block title %}Affiliate Program, Equity Research Hub{% endblock %}
+{% block content %}
+  <section class="hero affiliate-hero">
+    <div class="hero-inner">
+      <p class="eyebrow">Earn while you share</p>
+      <h2 class="hero-title">Get paid <em>{{ commission_pct }}%</em> for every customer you bring in.</h2>
+      <p class="hero-lede">Share your link. We track every click. When someone you sent signs up and pays, you earn money. You get paid for {{ commission_duration }} months on monthly and yearly subscriptions, or {{ commission_pct }}% upfront if they buy the lifetime plan.</p>
+    </div>
+  </section>
+
+  <section class="affiliate-link-card">
+    <div class="affiliate-link-header">
+      <p class="eyebrow">Your unique referral link</p>
+      <span class="referral-code-badge">{{ referral_code }}</span>
+    </div>
+    <div class="affiliate-link-row">
+      <input id="affiliateLink" class="affiliate-link-input" type="text" value="{{ referral_link }}" readonly>
+      <button type="button" id="copyLinkBtn" class="btn-primary">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="14" height="14" x="8" y="8" rx="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg>
+        <span>Copy link</span>
+      </button>
+    </div>
+    <p class="affiliate-link-meta">
+      Short version: <a href="{{ short_link }}" id="shortLink" target="_blank">{{ short_link }}</a>
+      <button type="button" class="btn-tiny" id="copyShortBtn">Copy</button>
+      <span class="muted"> · {{ cookie_days }}-day tracking window · sharing your link with yourself doesn't count</span>
+    </p>
+  </section>
+
+  <section class="affiliate-stats">
+    <div class="stat-tile stat-tile-affiliate">
+      <div class="stat-label">Link Clicks</div>
+      <div class="stat-value">{{ "{:,}".format(clicks) }}</div>
+      <div class="stat-sub">all-time</div>
+    </div>
+    <div class="stat-tile stat-tile-affiliate">
+      <div class="stat-label">Sign-ups</div>
+      <div class="stat-value">{{ "{:,}".format(signups) }}</div>
+      <div class="stat-sub">{% if clicks %}{{ "%.1f"|format((signups / clicks * 100) if clicks else 0) }}% of clicks{% else %}—{% endif %}</div>
+    </div>
+    <div class="stat-tile stat-tile-affiliate">
+      <div class="stat-label">Paid Conversions</div>
+      <div class="stat-value">{{ "{:,}".format(paid_conversions) }}</div>
+      <div class="stat-sub">{{ "%.1f"|format(conversion_rate) }}% click→pay</div>
+    </div>
+    <div class="stat-tile stat-tile-affiliate stat-tile-earnings">
+      <div class="stat-label">Total Earned</div>
+      <div class="stat-value">${{ "%.2f"|format(total_earnings) }}</div>
+      <div class="stat-sub">lifetime commissions</div>
+    </div>
+  </section>
+
+  <section class="earnings-breakdown">
+    <div class="earnings-card">
+      <h3 class="earnings-card-title">Pending</h3>
+      <p class="earnings-amount">${{ "%.2f"|format(pending_earnings) }}</p>
+      <p class="earnings-note">Money is locked for 30 days after the customer pays (in case they get a refund). After that, it pays out once you reach <strong>${{ "%.0f"|format(payout_minimum) }}</strong>.</p>
+    </div>
+    <div class="earnings-card">
+      <h3 class="earnings-card-title">Paid</h3>
+      <p class="earnings-amount">${{ "%.2f"|format(paid_earnings) }}</p>
+      <p class="earnings-note">Already sent to your payout method. See history in the activity table below.</p>
+    </div>
+    <div class="earnings-card earnings-card-action">
+      <h3 class="earnings-card-title">Request payout</h3>
+      <p class="earnings-amount earnings-amount-small">
+        {% if pending_earnings >= payout_minimum %}
+          <span class="payout-ready">Ready to request</span>
+        {% else %}
+          ${{ "%.2f"|format(payout_minimum - pending_earnings) }} to go
+        {% endif %}
+      </p>
+      <form action="{{ url_for('request_payout') }}" method="POST" style="margin-top:12px;">
+        <button type="submit" class="btn-primary"{% if pending_earnings < payout_minimum or not user.payout_email %} disabled{% endif %} style="width:100%; justify-content:center;">
+          Request payout
+        </button>
+      </form>
+      <p class="earnings-note" style="margin-top:10px;">
+        {% if not user.payout_email %}<span style="color: var(--warning);">Add payout details below first.</span>{% endif %}
+      </p>
+    </div>
+  </section>
+
+  <section class="affiliate-section">
+    <div class="affiliate-section-header">
+      <h3 class="section-title">Marketing copy</h3>
+      <span class="section-subtitle">Pre-written, tested</span>
+    </div>
+    <div class="marketing-grid">
+      <div class="marketing-card">
+        <p class="marketing-channel">Twitter / X</p>
+        <p class="marketing-text" id="copyTw">Stopped using free websites for stock research. Equity Research Hub links you straight to the actual SEC filings, lawsuits, big company events, the whole picture. Way faster than digging around on the SEC site. {{ referral_link }}</p>
+        <button type="button" class="btn-tiny copy-marketing" data-target="copyTw">Copy</button>
+      </div>
+      <div class="marketing-card">
+        <p class="marketing-channel">LinkedIn</p>
+        <p class="marketing-text" id="copyLi">Found a better tool for stock research. Equity Research Hub puts company filings, financials over time, lawsuits, and ownership all in one place. It also shows the big company events (lawsuits, accounting changes) that most people miss. Worth a look if you research stocks. {{ referral_link }}</p>
+        <button type="button" class="btn-tiny copy-marketing" data-target="copyLi">Copy</button>
+      </div>
+      <div class="marketing-card">
+        <p class="marketing-channel">One-line pitch</p>
+        <p class="marketing-text" id="copyOne">"It's a clean dashboard for stock research. It puts financials, SEC filings, and lawsuits all in one view." → {{ referral_link }}</p>
+        <button type="button" class="btn-tiny copy-marketing" data-target="copyOne">Copy</button>
+      </div>
+      <div class="marketing-card">
+        <p class="marketing-channel">Email pitch</p>
+        <p class="marketing-text" id="copyEmail">Subject: Better stock research in one tab
+
+Hey, wanted to send you something I've been using lately. It's called Equity Research Hub. You type in a stock ticker and it pulls up the financials, SEC filings (with direct links to the actual yearly and quarterly reports), lawsuits, ownership, and analyst opinions all in one screen.
+
+The free version is enough to try it out. Link: {{ referral_link }}</p>
+        <button type="button" class="btn-tiny copy-marketing" data-target="copyEmail">Copy</button>
+      </div>
+    </div>
+  </section>
+
+  <section class="affiliate-section">
+    <div class="affiliate-section-header">
+      <h3 class="section-title">Recent activity</h3>
+      <span class="section-subtitle">Last 25 events</span>
+    </div>
+    {% if recent %}
+      <table class="affiliate-table">
+        <thead>
+          <tr>
+            <th>Date</th>
+            <th>Event</th>
+            <th>Referred user</th>
+            <th class="right">Gross</th>
+            <th class="right">Commission</th>
+            <th>Status</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for r in recent %}
+            <tr>
+              <td class="mono">{{ r.created_at[:10] }}</td>
+              <td>
+                {% if r.event_type == 'signup' %}<span class="event-badge event-signup">Sign-up</span>
+                {% elif r.event_type == 'lifetime' %}<span class="event-badge event-lifetime">Lifetime</span>
+                {% else %}<span class="event-badge event-sub">{{ (r.plan or '')|capitalize }} · {{ (r.cycle or '')|capitalize }}</span>
+                {% endif %}
+              </td>
+              <td class="muted mono">{{ r.referred_email }}</td>
+              <td class="right mono">{% if r.gross_amount %}${{ "%.2f"|format(r.gross_amount) }}{% else %}—{% endif %}</td>
+              <td class="right mono">{% if r.commission_amount %}<strong>${{ "%.2f"|format(r.commission_amount) }}</strong>{% else %}—{% endif %}</td>
+              <td><span class="status-pill status-{{ r.status }}">{{ r.status|capitalize }}</span></td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    {% else %}
+      <div class="empty-state empty-state-compact">
+        <p>No activity yet. Share your link to start tracking clicks and sign-ups.</p>
+      </div>
+    {% endif %}
+  </section>
+
+  <section class="affiliate-section">
+    <div class="affiliate-section-header">
+      <h3 class="section-title">Payout settings</h3>
+      <span class="section-subtitle">How you get paid</span>
+    </div>
+    <form action="{{ url_for('save_payout_info') }}" method="POST" class="payout-form">
+      <div class="payout-fields">
+        <div class="auth-field">
+          <label for="payout_email">Payout email</label>
+          <input id="payout_email" name="payout_email" type="email" value="{{ user.payout_email or '' }}" placeholder="paypal-or-wise@example.com">
+          <span class="auth-hint">Use the email tied to PayPal, Wise, or Stripe Connect, based on the method you pick below.</span>
+        </div>
+        <div class="auth-field">
+          <label for="payout_method">Payout method</label>
+          <select id="payout_method" name="payout_method">
+            <option value="paypal" {% if user.payout_method == 'paypal' or not user.payout_method %}selected{% endif %}>PayPal</option>
+            <option value="wise" {% if user.payout_method == 'wise' %}selected{% endif %}>Wise (international wire)</option>
+            <option value="stripe" {% if user.payout_method == 'stripe' %}selected{% endif %}>Stripe Connect</option>
+            <option value="ach" {% if user.payout_method == 'ach' %}selected{% endif %}>ACH (US only)</option>
+          </select>
+        </div>
+      </div>
+      <button type="submit" class="btn-primary">Save payout settings</button>
+    </form>
+  </section>
+
+  <section class="affiliate-section terms-section">
+    <div class="affiliate-section-header">
+      <h3 class="section-title">Program terms</h3>
+    </div>
+    <ul class="terms-list">
+      <li><strong>{{ commission_pct }}% commission</strong> on every paid sign-up (Apprentice, Patron, or Lifetime). Free sign-ups get tracked but you don't get paid for them.</li>
+      <li><strong>{{ commission_duration }} months of payments</strong> on monthly and yearly plans. You earn {{ commission_pct }}% of every payment they make for the first {{ commission_duration }} months.</li>
+      <li><strong>{{ cookie_days }}-day tracking window.</strong> If someone clicks your link, you get credit for any sign-up within the next {{ cookie_days }} days.</li>
+      <li><strong>${{ "%.0f"|format(payout_minimum) }} minimum</strong> to request a payout. Pending money keeps adding up until you reach it.</li>
+      <li><strong>30-day hold for refunds.</strong> Money is pending for 30 days after the customer pays. After that, it becomes payable.</li>
+      <li><strong>You can't refer yourself.</strong> Fake clicks, fake sign-ups, or breaking other sites' rules to drive traffic will get your account closed and any pending money taken back.</li>
+      <li>Earnings are taxable income. If you earn more than $600 in a year (US), we'll send you a 1099-NEC tax form.</li>
+    </ul>
+  </section>
+{% endblock %}
+{% block scripts %}
+  <script>
+    (function () {
+      function copyText(text, btn) {
+        navigator.clipboard.writeText(text).then(() => {
+          const orig = btn.innerHTML;
+          btn.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg><span>Copied!</span>';
+          btn.classList.add('saved');
+          setTimeout(() => { btn.innerHTML = orig; btn.classList.remove('saved'); }, 1600);
+        }).catch(() => alert('Could not copy. Long-press to select instead.'));
+      }
+      const linkInput = document.getElementById('affiliateLink');
+      document.getElementById('copyLinkBtn').addEventListener('click', () => {
+        linkInput.select();
+        copyText(linkInput.value, document.getElementById('copyLinkBtn'));
+      });
+      document.getElementById('copyShortBtn').addEventListener('click', () => {
+        const link = document.getElementById('shortLink').textContent;
+        copyText(link, document.getElementById('copyShortBtn'));
+      });
+      document.querySelectorAll('.copy-marketing').forEach(btn => {
+        btn.addEventListener('click', () => {
+          const target = document.getElementById(btn.dataset.target);
+          if (target) copyText(target.textContent, btn);
+        });
+      });
+    })();
+  </script>
+{% endblock %}

@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{% block title %}Equity Research Hub{% endblock %}</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@500;600;700&family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+  <div class="app">
+    <header class="header">
+      <div class="header-inner">
+        <a href="{{ url_for('index') }}" class="brand">
+          <div class="brand-mark"><span>E</span><span class="brand-mark-h">·</span><span>H</span></div>
+          <div class="brand-text">
+            <h1 class="brand-title">Equity Research Hub</h1>
+            <p class="brand-subtitle">Due diligence, organized for your decision</p>
+          </div>
+        </a>
+        <nav class="nav">
+          {% if user %}
+            <a href="{{ url_for('index') }}" class="nav-link {% if request.endpoint == 'index' %}active{% endif %}">Research</a>
+            <a href="{{ url_for('watchlist_page') }}" class="nav-link {% if request.endpoint == 'watchlist_page' %}active{% endif %}">Watchlist</a>
+            <a href="{{ url_for('portfolio_page') }}" class="nav-link {% if request.endpoint == 'portfolio_page' %}active{% endif %}">Portfolio</a>
+            <a href="{{ url_for('alerts_page') }}" class="nav-link {% if request.endpoint == 'alerts_page' %}active{% endif %}">Alerts</a>
+            <a href="{{ url_for('community_home') }}" class="nav-link {% if request.endpoint in ['community_home','community_room'] %}active{% endif %}">Community</a>
+            <a href="{{ url_for('affiliate_page') }}" class="nav-link {% if request.endpoint == 'affiliate_page' %}active{% endif %}">Affiliate</a>
+            {% if not user.is_owner %}
+              <a href="{{ url_for('subscribe_page') }}" class="nav-link {% if user.effective_tier == 'free' %}nav-link-emphasis{% endif %} {% if request.endpoint == 'subscribe_page' %}active{% endif %}">{% if user.effective_tier == 'free' %}Upgrade{% else %}Subscription{% endif %}</a>
+            {% endif %}
+            <span class="tier-badge tier-{{ user.effective_tier }}{% if user.is_owner %} tier-owner{% endif %}{% if user.lifetime %} tier-lifetime{% endif %}">
+              {%- if user.is_owner -%}Owner
+              {%- elif user.lifetime -%}Patron · Lifetime
+              {%- else -%}{{ user.effective_tier|capitalize }}{%- endif -%}
+            </span>
+            <a href="{{ url_for('account_page') }}" class="nav-account-link">{{ user.display_name or user.email.split('@')[0] }}</a>
+            <form action="{{ url_for('logout') }}" method="POST" class="logout-form">
+              <button type="submit" class="nav-link nav-link-quiet">Sign out</button>
+            </form>
+          {% else %}
+            <a href="{{ url_for('login_page') }}" class="nav-link">Sign in</a>
+            <a href="{{ url_for('signup_page') }}" class="btn-secondary">Sign up free</a>
+          {% endif %}
+        </nav>
+      </div>
+    </header>
+
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% if messages %}
+        <div class="flash-container">
+          {% for category, message in messages %}
+            <div class="flash flash-{{ category }}">{{ message }}</div>
+          {% endfor %}
+        </div>
+      {% endif %}
+    {% endwith %}
+
+    <main class="main">
+      {% block content %}{% endblock %}
+    </main>
+
+    <footer class="footer">
+      <div class="footer-inner">
+        <div>
+          <p class="footer-title">Equity Research Hub</p>
+          <p class="footer-note">Data from Yahoo Finance and SEC EDGAR. Original filings linked where available.</p>
+        </div>
+        <p class="disclaimer"><strong>For information only.</strong> This tool pulls together public data to help with your own research. It is not investment advice, a recommendation, or an offer to buy or sell stocks. Always check the numbers against the original filings before you act, and talk to a licensed advisor before making any investment.</p>
+      </div>
+    </footer>
+  </div>
+  {% block scripts %}{% endblock %}
+</body>
+</html>

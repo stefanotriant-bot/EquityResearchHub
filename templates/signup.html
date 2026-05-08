@@ -1,0 +1,39 @@
+{% extends "_layout.html" %}
+{% block title %}Sign Up, Equity Research Hub{% endblock %}
+{% block content %}
+  <div class="auth-page">
+    <div class="auth-card">
+      <p class="eyebrow">Create your account</p>
+      <h2 class="auth-title">Start your research journal</h2>
+      <p class="auth-lede">Save the companies you're following, set your own rules for what's worth buying, and come back to your notes anytime.</p>
+
+      <form method="POST" class="auth-form" action="{{ url_for('signup_page') }}">
+        <input type="hidden" name="next" value="{{ next_url }}">
+        <div class="auth-field">
+          <label for="email">Email</label>
+          <input id="email" name="email" type="email" required value="{{ email or '' }}" autocomplete="email" autofocus>
+        </div>
+        <div class="auth-field">
+          <label for="display_name">Display name <span class="muted">(optional)</span></label>
+          <input id="display_name" name="display_name" type="text" value="{{ display_name or '' }}" autocomplete="name">
+        </div>
+        <div class="auth-field">
+          <label for="password">Password</label>
+          <input id="password" name="password" type="password" required minlength="8" autocomplete="new-password">
+          <span class="auth-hint">At least 8 characters.</span>
+        </div>
+        <button type="submit" class="btn-primary auth-submit">Create account</button>
+      </form>
+
+      <div class="auth-perks">
+        <p><strong>Free tier includes:</strong></p>
+        <ul>
+          <li>Look up 3 stocks per day</li>
+          <li>Save up to 3 stocks to your watchlist</li>
+          <li>Company info, current price, and basic financial numbers</li>
+        </ul>
+      </div>
+      <p class="auth-alt">Already have an account? <a href="{{ url_for('login_page') }}">Sign in</a></p>
+    </div>
+  </div>
+{% endblock %}

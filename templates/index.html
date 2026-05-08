@@ -1,0 +1,99 @@
+{% extends "_layout.html" %}
+{% block title %}Equity Research Hub, Due Diligence Companion{% endblock %}
+{% block content %}
+  <section class="hero" id="hero">
+    <div class="hero-inner">
+      <p class="eyebrow">Research a public company</p>
+      <h2 class="hero-title">Look up a ticker. Get the info you'd want before writing a check.</h2>
+      <p class="hero-lede">See the price, the financials over time, SEC filings, big events, what analysts think, and who owns it. All pulled from the original sources and laid out so it's easy to read.</p>
+
+      {% if user %}
+        <div class="user-greeting">
+          {% if user.is_owner %}
+            Welcome, <strong>{{ user.display_name or user.email }}</strong>, you have unlimited access (Owner).
+          {% elif user.lifetime %}
+            Welcome back, <strong>{{ user.display_name or user.email }}</strong>, Patron access for life.
+          {% elif user.effective_tier == 'free' %}
+            Welcome back, <strong>{{ user.display_name or user.email }}</strong>. You have <strong>{{ remaining_lookups }} of {{ free_daily_lookups }}</strong> free lookups left today. <a href="{{ url_for('subscribe_page') }}">Upgrade for unlimited.</a>
+          {% else %}
+            Welcome back, <strong>{{ user.display_name or user.email }}</strong>. {{ user.effective_tier|capitalize }} tier, unlimited lookups.
+          {% endif %}
+        </div>
+      {% else %}
+        <div class="signup-cta">
+          <a href="{{ url_for('signup_page') }}" class="btn-secondary">Sign up free</a>
+          <span class="muted">Start with 3 lookups a day. No card required.</span>
+        </div>
+      {% endif %}
+
+      <form id="searchForm" class="search-form" autocomplete="off">
+        <div class="search-input-wrap">
+          <svg class="search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+          <input id="tickerInput" type="text" placeholder="Enter a ticker like AAPL, MSFT, NVDA, BRK-B…" maxlength="10" required value="{{ prefilled_ticker or '' }}">
+        </div>
+        <button type="submit" class="btn-primary">
+          <span>Compile Research</span>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
+        </button>
+      </form>
+      <div class="quick-tickers">
+        <span>Try:</span>
+        <button type="button" class="chip" data-ticker="AAPL">AAPL</button>
+        <button type="button" class="chip" data-ticker="MSFT">MSFT</button>
+        <button type="button" class="chip" data-ticker="NVDA">NVDA</button>
+        <button type="button" class="chip" data-ticker="GOOGL">GOOGL</button>
+        <button type="button" class="chip" data-ticker="BRK-B">BRK-B</button>
+        <button type="button" class="chip" data-ticker="JPM">JPM</button>
+      </div>
+
+      {% if user and watchlist %}
+        <div class="watchlist-strip">
+          <span class="watchlist-strip-label">Your watchlist:</span>
+          {% for ticker in watchlist %}
+            <button type="button" class="chip chip-watchlist" data-ticker="{{ ticker }}">{{ ticker }}</button>
+          {% endfor %}
+          <a href="{{ url_for('watchlist_page') }}" class="watchlist-strip-link">View all →</a>
+        </div>
+      {% endif %}
+    </div>
+  </section>
+
+  {% if not user %}
+    <section class="features-strip">
+      <div class="features-grid">
+        <div class="feature">
+          <div class="feature-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 3v18h18"/><path d="m7 17 4-4 4 2 5-7"/></svg></div>
+          <h3>Real numbers and charts</h3>
+          <p>Revenue, profits, and cash from real filings, plus a 12-month price chart that shows the price when you hover.</p>
+        </div>
+        <div class="feature">
+          <div class="feature-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/><path d="M9 13h6"/><path d="M9 17h6"/></svg></div>
+          <h3>Direct SEC filings</h3>
+          <p>Yearly, quarterly, and event reports linked straight to the original document on the SEC's site.</p>
+        </div>
+        <div class="feature">
+          <div class="feature-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 9v4"/><path d="M12 17h.01"/><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/></svg></div>
+          <h3>Big company events</h3>
+          <p>See lawsuits, accounting changes, and other big news that can move a stock's price.</p>
+        </div>
+        <div class="feature">
+          <div class="feature-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M19 21V5a2 2 0 0 0-2-2H7a2 2 0 0 0-2 2v16l7-3 7 3z"/></svg></div>
+          <h3>Build a watchlist</h3>
+          <p>Save the stocks you're following and come back to them anytime, on any device.</p>
+        </div>
+      </div>
+    </section>
+  {% endif %}
+
+  <section id="loading" class="loading hidden">
+    <div class="spinner"></div>
+    <p>Compiling research…</p>
+    <p class="loading-sub">Pulling financials, SEC filings, and recent events.</p>
+  </section>
+  <section id="error" class="error-card hidden"></section>
+  <section id="results" class="results hidden"></section>
+{% endblock %}
+{% block scripts %}
+  <script>window.APP_USER = {{ user_json|safe }};</script>
+  <script src="{{ url_for('static', filename='script.js') }}"></script>
+{% endblock %}
