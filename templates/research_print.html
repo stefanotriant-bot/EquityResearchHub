@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>{{ ticker }} research note, Equity Research Hub</title>
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@500;600;700&family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <style>
+    @page { margin: 1in; }
+    * { box-sizing: border-box; }
+    body {
+      font-family: 'Inter', sans-serif;
+      color: #2a201a;
+      line-height: 1.55;
+      max-width: 900px;
+      margin: 0 auto;
+      padding: 40px;
+      background: #fff;
+    }
+    .doc-header { border-bottom: 3px double #b08538; padding-bottom: 20px; margin-bottom: 28px; }
+    .doc-title { font-family: 'Playfair Display', serif; font-size: 32px; font-weight: 700; letter-spacing: -0.01em; color: #1f3a36; }
+    .doc-sub { color: #8a7459; font-size: 13px; margin-top: 6px; font-family: 'JetBrains Mono', monospace; }
+    .doc-meta { font-size: 12px; color: #8a7459; margin-top: 4px; }
+    h2 { font-family: 'Playfair Display', serif; font-size: 20px; font-weight: 600; color: #1f3a36; margin: 28px 0 12px; padding-bottom: 6px; border-bottom: 1px solid #e6dac5; }
+    h3 { font-family: 'Inter', sans-serif; font-size: 14px; text-transform: uppercase; letter-spacing: 0.1em; color: #8a7459; margin: 18px 0 8px; font-weight: 600; }
+    .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 6px 24px; font-size: 13px; }
+    .grid dt { color: #8a7459; font-size: 11px; text-transform: uppercase; letter-spacing: 0.08em; }
+    .grid dd { color: #2a201a; font-weight: 500; font-family: 'JetBrains Mono', monospace; margin-bottom: 8px; }
+    table { width: 100%; border-collapse: collapse; font-size: 12px; margin-top: 6px; }
+    table th, table td { padding: 6px 8px; text-align: left; border-bottom: 1px solid #efe6d4; }
+    table th { font-size: 10px; text-transform: uppercase; letter-spacing: 0.08em; color: #8a7459; }
+    table td.r { text-align: right; font-family: 'JetBrains Mono', monospace; }
+    .business-summary { font-size: 13px; color: #5e4e3c; line-height: 1.6; }
+    .thesis-block { background: #fdfaf2; border-left: 4px solid #b08538; padding: 14px 18px; margin: 10px 0; font-size: 13px; }
+    .thesis-label { font-weight: 600; color: #1f3a36; margin-bottom: 4px; }
+    .footer-note { margin-top: 40px; padding-top: 16px; border-top: 1px solid #e6dac5; font-size: 10px; color: #8a7459; text-align: center; }
+    .print-btn { position: fixed; top: 20px; right: 20px; padding: 10px 18px; background: #1f3a36; color: #fdfaf2; border: none; border-radius: 6px; font-family: 'Inter', sans-serif; cursor: pointer; font-weight: 600; }
+    @media print { .print-btn { display: none; } body { padding: 0; } }
+  </style>
+</head>
+<body>
+  <button class="print-btn" onclick="window.print()">Print / Save as PDF</button>
+
+  <header class="doc-header">
+    <div class="doc-title">{{ overview.name }}</div>
+    <div class="doc-sub">{{ ticker }} · {{ overview.exchange or '' }}</div>
+    <div class="doc-meta">Research note generated {{ generated_at }} via Equity Research Hub · stocktrackerhub.com</div>
+  </header>
+
+  <h2>Snapshot</h2>
+  <dl class="grid">
+    <dt>Sector</dt><dd>{{ overview.sector or '—' }}</dd>
+    <dt>Industry</dt><dd>{{ overview.industry or '—' }}</dd>
+    <dt>Current price</dt><dd>{% if quote.price %}${{ "%.2f"|format(quote.price) }}{% else %}—{% endif %}</dd>
+    <dt>Market cap</dt><dd>{% if quote.marketCap %}{% if quote.marketCap >= 1e12 %}${{ "%.2f"|format(quote.marketCap/1e12) }}T{% elif quote.marketCap >= 1e9 %}${{ "%.2f"|format(quote.marketCap/1e9) }}B{% else %}${{ "%.0f"|format(quote.marketCap/1e6) }}M{% endif %}{% else %}—{% endif %}</dd>
+    <dt>52-week range</dt><dd>{% if quote.fiftyTwoWeekLow and quote.fiftyTwoWeekHigh %}${{ "%.2f"|format(quote.fiftyTwoWeekLow) }} – ${{ "%.2f"|format(quote.fiftyTwoWeekHigh) }}{% else %}—{% endif %}</dd>
+    <dt>Employees</dt><dd>{{ "{:,}".format(overview.employees) if overview.employees else '—' }}</dd>
+  </dl>
+
+  <h2>Business</h2>
+  <p class="business-summary">{{ overview.summary or 'No description available.' }}</p>
+
+  <h2>Valuation &amp; quality</h2>
+  <dl class="grid">
+    <dt>P/E (TTM)</dt><dd>{{ "%.1f"|format(valuation.peRatio) if valuation.peRatio else '—' }}</dd>
+    <dt>Forward P/E</dt><dd>{{ "%.1f"|format(valuation.forwardPE) if valuation.forwardPE else '—' }}</dd>
+    <dt>Price / Book</dt><dd>{{ "%.2f"|format(valuation.priceToBook) if valuation.priceToBook else '—' }}</dd>
+    <dt>EV / EBITDA</dt><dd>{{ "%.1f"|format(valuation.evToEbitda) if valuation.evToEbitda else '—' }}</dd>
+    <dt>Profit margin</dt><dd>{{ "%.1f"|format(valuation.profitMargin * 100) ~ '%' if valuation.profitMargin else '—' }}</dd>
+    <dt>Return on equity</dt><dd>{{ "%.1f"|format(valuation.returnOnEquity * 100) ~ '%' if valuation.returnOnEquity else '—' }}</dd>
+    <dt>FCF yield</dt><dd>{{ "%.2f"|format(valuation.fcfYield * 100) ~ '%' if valuation.fcfYield else '—' }}</dd>
+    <dt>Debt / Equity</dt><dd>{{ "%.0f"|format(valuation.debtToEquity) if valuation.debtToEquity else '—' }}</dd>
+  </dl>
+
+  {% if financials.income.revenue %}
+    <h2>Income statement</h2>
+    <table>
+      <thead><tr><th>Year</th><th class="r">Revenue</th><th class="r">Net income</th></tr></thead>
+      <tbody>
+        {% for r in financials.income.revenue %}
+          <tr>
+            <td>{{ r.date[:4] }}</td>
+            <td class="r">{% if r.value >= 1e9 %}${{ "%.2f"|format(r.value/1e9) }}B{% else %}${{ "%.0f"|format(r.value/1e6) }}M{% endif %}</td>
+            <td class="r">{% set ni = financials.income.netIncome[loop.index0] if financials.income.netIncome|length > loop.index0 else None %}{% if ni %}{% if ni.value|abs >= 1e9 %}${{ "%.2f"|format(ni.value/1e9) }}B{% else %}${{ "%.0f"|format(ni.value/1e6) }}M{% endif %}{% else %}—{% endif %}</td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  {% endif %}
+
+  {% if note %}
+    <h2>My thesis</h2>
+    {% if note.thesis %}<div class="thesis-block"><div class="thesis-label">Why I'm watching this</div>{{ note.thesis }}</div>{% endif %}
+    {% if note.what_must_be_true %}<div class="thesis-block"><div class="thesis-label">What needs to remain true</div>{{ note.what_must_be_true }}</div>{% endif %}
+    {% if note.what_changes_mind %}<div class="thesis-block"><div class="thesis-label">What would change my mind</div>{{ note.what_changes_mind }}</div>{% endif %}
+    {% if note.entry_target or note.exit_target %}
+      <dl class="grid">
+        {% if note.entry_target %}<dt>Entry target</dt><dd>${{ "%.2f"|format(note.entry_target) }}</dd>{% endif %}
+        {% if note.exit_target %}<dt>Exit target</dt><dd>${{ "%.2f"|format(note.exit_target) }}</dd>{% endif %}
+      </dl>
+    {% endif %}
+    {% if note.notes %}<div class="thesis-block"><div class="thesis-label">Notes</div>{{ note.notes }}</div>{% endif %}
+  {% endif %}
+
+  {% if filings.available and filings.categorized['10-K'] %}
+    <h2>Latest filings</h2>
+    <table>
+      <thead><tr><th>Form</th><th>Filed</th><th>Description</th></tr></thead>
+      <tbody>
+        {% for form_type in ['10-K', '10-Q', '8-K'] %}
+          {% for f in filings.categorized[form_type][:3] %}
+            <tr><td>{{ f.form }}</td><td>{{ f.filingDate }}</td><td>{{ f.description or '—' }}</td></tr>
+          {% endfor %}
+        {% endfor %}
+      </tbody>
+    </table>
+  {% endif %}
+
+  <div class="footer-note">
+    For informational purposes only. Not investment advice. Verify figures against primary filings before acting.
+  </div>
+</body>
+</html>

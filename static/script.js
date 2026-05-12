@@ -136,6 +136,7 @@ function render(d) {
 
   el.results.innerHTML = [
     renderCompanyHero(d),
+    renderAIBriefSection(d),
     renderQuoteSection(d),
     renderHistorySection(d),
     renderForecastsSection(d),
@@ -187,6 +188,60 @@ function render(d) {
   wireSMAToggle(d);
   // Wire export
   wireExportButton(d);
+  // Wire AI brief button
+  wireAIBriefButton(d);
+  // Wire PDF print button
+  wirePDFButton(d);
+}
+
+function wireAIBriefButton(d) {
+  const btn = el.results.querySelector('#aiBriefBtn');
+  if (!btn) return;
+  btn.addEventListener('click', async () => {
+    const out = el.results.querySelector('#aiBriefContent');
+    btn.disabled = true;
+    btn.innerHTML = '<span>Generating brief, this takes 10-30 seconds…</span>';
+    try {
+      const res = await fetch(`/api/ai-brief/${d.ticker}`);
+      const data = await res.json();
+      if (data.brief) {
+        out.innerHTML = `
+          <div class="ai-brief-output">
+            ${data.brief.split('\n').map(p => p.trim() ? `<p>${escape(p)}</p>` : '').join('')}
+          </div>
+          <p class="ai-brief-meta muted">
+            Generated ${data.cached ? '(cached)' : 'fresh'} · ${escape(data.generatedAt.slice(0,10))} · AI summaries can contain errors, always verify in primary sources.
+          </p>
+        `;
+        btn.style.display = 'none';
+      } else if (data.upgradeRequired) {
+        btn.disabled = false;
+        btn.innerHTML = '<span>Generate AI brief →</span>';
+        if (confirm(data.error + '\n\nView plans?')) {
+          window.location.href = data.upgradeUrl || '/subscribe';
+        }
+      } else if (data.configMissing) {
+        out.innerHTML = `<p class="error-text">${escape(data.error)}</p>`;
+        btn.style.display = 'none';
+      } else {
+        btn.disabled = false;
+        btn.innerHTML = '<span>Try again</span>';
+        alert(data.error || 'Could not generate brief.');
+      }
+    } catch (e) {
+      btn.disabled = false;
+      btn.innerHTML = '<span>Try again</span>';
+      alert('Network error: ' + e.message);
+    }
+  });
+}
+
+function wirePDFButton(d) {
+  const btn = el.results.querySelector('#pdfBtn');
+  if (!btn) return;
+  btn.addEventListener('click', () => {
+    window.open(`/research/${d.ticker}/print`, '_blank');
+  });
 }
 
 function wireDCFWidget(d) {
@@ -302,6 +357,10 @@ function wireSaveButton(d) {
 function renderLockedFeatures(d) {
   if (!d.locked || !d.locked.length) return '';
   const labels = {
+    aiBrief: 'AI-generated company brief (flagship Pro feature)',
+    researchJournal: 'Research journal with thesis tracking',
+    alerts: 'Custom price and metric alerts',
+    pdfExport: 'PDF research note export',
     history: '12-month interactive price chart',
     fullFinancials: 'Full income, balance sheet & cash flow statements',
     fullValuation: 'Complete valuation & quality metrics',
@@ -311,6 +370,9 @@ function renderLockedFeatures(d) {
     holders: 'Top institutional holders (13F)',
     analyst: 'Analyst targets & buy/sell consensus',
     legal: 'Legal & material events feed',
+    forecasts: 'Analyst forecasts and consensus estimates',
+    earnings: 'Earnings calendar with surprise history',
+    capitalEvents: 'Buybacks, M&A, debt issuance timeline',
   };
   const items = d.locked.map(k => labels[k]).filter(Boolean);
   if (!items.length) return '';
@@ -1243,17 +1305,64 @@ function renderDCFSection(d) {
 
 function renderExportSection(d) {
   if (d.tier === 'free') return '';
+  const ticker = d.ticker;
   return `
     <div class="section export-section">
       <div class="section-header">
-        <h3 class="section-title">Export Research</h3>
-        <span class="section-subtitle">CSV Download</span>
+        <h3 class="section-title">Save &amp; Export</h3>
+        <span class="section-subtitle">Your work, your files</span>
       </div>
-      <p class="muted" style="font-size: 13px; margin-bottom: 14px;">Download every section above as a CSV file you can open in Excel, Google Sheets, or any analysis tool.</p>
-      <button id="exportBtn" type="button" class="btn-primary">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:16px;height:16px;"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" x2="12" y1="15" y2="3"/></svg>
-        <span>Download {{TICKER}}_research.csv</span>
-      </button>
+      <p class="muted" style="font-size: 13px; margin-bottom: 16px;">Capture what you've researched and built around this stock.</p>
+      <div class="export-actions">
+        <a href="/journal/${ticker}" class="btn-secondary">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:16px;height:16px;"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/><path d="M9 13h6"/><path d="M9 17h6"/></svg>
+          <span>Open thesis in journal</span>
+        </a>
+        <button id="pdfBtn" type="button" class="btn-secondary">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:16px;height:16px;"><rect width="14" height="20" x="5" y="2" rx="2"/><path d="M9 13h6"/><path d="M9 17h3"/></svg>
+          <span>Generate PDF note</span>
+        </button>
+        <button id="exportBtn" type="button" class="btn-secondary">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:16px;height:16px;"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" x2="12" y1="15" y2="3"/></svg>
+          <span>Download CSV</span>
+        </button>
+      </div>
     </div>
-  `.replace('{{TICKER}}', d.ticker);
+  `;
+}
+
+function renderAIBriefSection(d) {
+  if (d.tier === 'free') {
+    return `
+      <div class="section ai-brief-section ai-brief-locked">
+        <div class="section-header">
+          <h3 class="section-title">AI Company Brief</h3>
+          <span class="section-subtitle">Pro Feature</span>
+        </div>
+        <div class="ai-brief-promo">
+          <div class="ai-brief-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M9.5 2A2.5 2.5 0 0 1 12 4.5v15a2.5 2.5 0 0 1-4.96.44 2.5 2.5 0 0 1-2.96-3.08 3 3 0 0 1-.34-5.58 2.5 2.5 0 0 1 1.32-4.24 2.5 2.5 0 0 1 1.98-3A2.5 2.5 0 0 1 9.5 2Z"/><path d="M14.5 2A2.5 2.5 0 0 0 12 4.5v15a2.5 2.5 0 0 0 4.96.44 2.5 2.5 0 0 0 2.96-3.08 3 3 0 0 0 .34-5.58 2.5 2.5 0 0 0-1.32-4.24 2.5 2.5 0 0 0-1.98-3A2.5 2.5 0 0 0 14.5 2Z"/></svg>
+          </div>
+          <div>
+            <p style="margin-bottom:8px; font-weight:500;">Get a 3-paragraph plain-English analyst brief on ${escape(d.ticker)}.</p>
+            <p class="muted" style="font-size:13px;">Grounded on the actual 10-K and recent 8-K filings. What the business does, what the numbers say, what's happening lately. Upgrade to unlock.</p>
+            <a href="/subscribe" class="btn-primary" style="margin-top:14px; display:inline-flex;">Unlock AI briefs →</a>
+          </div>
+        </div>
+      </div>
+    `;
+  }
+  return `
+    <div class="section ai-brief-section">
+      <div class="section-header">
+        <h3 class="section-title">AI Company Brief</h3>
+        <span class="section-subtitle">Grounded on this company's filings</span>
+      </div>
+      <button id="aiBriefBtn" class="btn-primary ai-brief-btn">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:16px;height:16px;"><path d="M9.5 2A2.5 2.5 0 0 1 12 4.5v15a2.5 2.5 0 0 1-4.96.44 2.5 2.5 0 0 1-2.96-3.08 3 3 0 0 1-.34-5.58 2.5 2.5 0 0 1 1.32-4.24 2.5 2.5 0 0 1 1.98-3A2.5 2.5 0 0 1 9.5 2Z"/><path d="M14.5 2A2.5 2.5 0 0 0 12 4.5v15a2.5 2.5 0 0 0 4.96.44 2.5 2.5 0 0 0 2.96-3.08 3 3 0 0 0 .34-5.58 2.5 2.5 0 0 0-1.32-4.24 2.5 2.5 0 0 0-1.98-3A2.5 2.5 0 0 0 14.5 2Z"/></svg>
+        <span>Generate AI brief for ${escape(d.ticker)}</span>
+      </button>
+      <div id="aiBriefContent" class="ai-brief-content"></div>
+    </div>
+  `;
 }

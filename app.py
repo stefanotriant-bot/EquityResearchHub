@@ -29,6 +29,12 @@ try:
 except ImportError:
     _STRIPE_LIB = False
 
+try:
+    import anthropic
+    _ANTHROPIC_LIB = True
+except ImportError:
+    _ANTHROPIC_LIB = False
+
 # ============================================================================
 # OWNER CONFIGURATION
 # ----------------------------------------------------------------------------
@@ -49,8 +55,13 @@ app.config["DATABASE"] = os.path.join(APP_DIR, "erh.db")
 app.permanent_session_lifetime = timedelta(days=30)
 
 # ---------- Plan & limit configuration ----------
-FREE_DAILY_LOOKUPS = 3
-FREE_WATCHLIST_LIMIT = 3
+# Free tier is FEATURE-gated, not count-gated. Unlimited lookups, unlimited watchlist.
+# What's locked: AI brief, research journal, alerts, exports, comparison, full filings.
+FREE_WATCHLIST_LIMIT = 10
+APPRENTICE_AI_BRIEFS_PER_DAY = 10
+APPRENTICE_JOURNAL_TICKERS = 5
+APPRENTICE_ACTIVE_ALERTS = 5
+# Patron and lifetime are unlimited.
 
 PLANS = {
     "apprentice": {"monthly": 9.99, "yearly": 89.0, "name": "Apprentice"},
@@ -73,6 +84,12 @@ STRIPE_PRICES = {
     ("patron", "yearly"):      os.environ.get("STRIPE_PRICE_PATRON_YEARLY"),
     ("lifetime", "lifetime"):  os.environ.get("STRIPE_PRICE_LIFETIME"),
 }
+
+# ---------- Anthropic (AI company brief) ----------
+ANTHROPIC_API_KEY = os.environ.get("ANTHROPIC_API_KEY")
+ANTHROPIC_ENABLED = bool(ANTHROPIC_API_KEY and _ANTHROPIC_LIB)
+AI_BRIEF_CACHE_HOURS = 24
+AI_BRIEF_MODEL = "claude-haiku-4-5-20251001"
 
 # ---------- Community chat ----------
 TIER_HIERARCHY = {"free": 0, "apprentice": 1, "patron": 2}
@@ -202,6 +219,41 @@ def init_db():
             FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
         );
         CREATE INDEX IF NOT EXISTS idx_alerts_user ON alerts(user_id, status);
+        CREATE TABLE IF NOT EXISTS research_notes (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id INTEGER NOT NULL,
+            ticker TEXT NOT NULL,
+            thesis TEXT,
+            what_must_be_true TEXT,
+            what_changes_mind TEXT,
+            entry_target REAL,
+            exit_target REAL,
+            notes TEXT,
+            revision_number INTEGER DEFAULT 1,
+            created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+            updated_at TEXT DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+        );
+        CREATE INDEX IF NOT EXISTS idx_notes_user_ticker ON research_notes(user_id, ticker);
+        CREATE TABLE IF NOT EXISTS note_revisions (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            note_id INTEGER NOT NULL,
+            snapshot TEXT NOT NULL,
+            saved_at TEXT DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (note_id) REFERENCES research_notes(id) ON DELETE CASCADE
+        );
+        CREATE TABLE IF NOT EXISTS ai_briefs (
+            ticker TEXT PRIMARY KEY,
+            brief TEXT NOT NULL,
+            sources TEXT,
+            generated_at TEXT DEFAULT CURRENT_TIMESTAMP
+        );
+        CREATE TABLE IF NOT EXISTS ai_brief_usage (
+            user_id INTEGER NOT NULL,
+            ticker TEXT NOT NULL,
+            used_at TEXT DEFAULT CURRENT_TIMESTAMP
+        );
+        CREATE INDEX IF NOT EXISTS idx_brief_usage_user ON ai_brief_usage(user_id, used_at);
     """)
     # Lightweight migrations for existing DBs
     cur = db.execute("PRAGMA table_info(users)")
@@ -1162,40 +1214,20 @@ def get_legal_signals(filings):
 
 
 # ============================================================================
-# RESEARCH GATING
+# RESEARCH GATING (feature-based, not count-based)
 # ============================================================================
-def reset_lookups_if_new_day(user):
-    today = date.today().isoformat()
-    if user.get("lookups_date") != today:
-        db = get_db()
-        db.execute("UPDATE users SET lookups_count = 0, lookups_date = ? WHERE id = ?",
-                   (today, user["id"]))
-        db.commit()
-        user["lookups_count"] = 0
-        user["lookups_date"] = today
-
-
 def can_lookup(user):
-    if user["effective_tier"] in ("apprentice", "patron"):
-        return True, None
-    reset_lookups_if_new_day(user)
-    if (user.get("lookups_count") or 0) >= FREE_DAILY_LOOKUPS:
-        return False, (f"You've used all {FREE_DAILY_LOOKUPS} free researches today. "
-                       "Upgrade to Apprentice for unlimited.")
+    """Everyone with an account can look up any stock. Free tier is feature-gated, not count-gated."""
     return True, None
 
 
-def increment_lookups(user_id):
-    db = get_db()
-    db.execute("UPDATE users SET lookups_count = lookups_count + 1 WHERE id = ?", (user_id,))
-    db.commit()
-
-
 def filter_payload_by_tier(payload, tier):
+    """Feature gating: free gets every public-data feature, premium gates are AI/journal/alerts/news/holders."""
     payload["tier"] = tier
     if tier == "patron":
         return payload
     if tier == "apprentice":
+        # Apprentice gets news, basic SEC filings (10-K), but no analyst/legal/capital events/holders
         payload["holders"] = []
         payload["recommendations"] = None
         payload["analystTargets"] = None
@@ -1205,32 +1237,19 @@ def filter_payload_by_tier(payload, tier):
             cat = payload["filings"]["categorized"]
             payload["filings"]["categorized"] = {
                 "10-K": cat.get("10-K", []),
-                "10-Q": [], "8-K": [], "DEF 14A": [], "other": [],
+                "10-Q": cat.get("10-Q", []),
+                "8-K": [], "DEF 14A": [], "other": [],
             }
         payload["locked"] = ["holders", "analyst", "legal", "fullFilings", "capitalEvents"]
         return payload
-    # free
-    f = payload.get("financials") or {}
-    payload["financials"] = {
-        "income": {
-            "revenue": (f.get("income") or {}).get("revenue", []),
-            "netIncome": (f.get("income") or {}).get("netIncome", []),
-        },
-        "balance": {}, "cash": {},
-    }
-    payload["history"] = []
-    payload["intraday"] = []
-    payload["movingAverages"] = {"sma50": [], "sma200": []}
-    payload["volumeAnalysis"] = {}
+    # Free tier: full market data (overview, quote, history, financials, charts, valuation,
+    # peers, sector, ESG). Locked features stay locked because that's where the value is.
     payload["news"] = []
     payload["holders"] = []
     payload["recommendations"] = None
     payload["analystTargets"] = None
     payload["forecasts"] = {"items": []}
     payload["earningsCalendar"] = {"history": []}
-    payload["esg"] = None
-    payload["peers"] = []
-    payload["sectorPerformance"] = None
     payload["capitalEvents"] = []
     payload["legalSignals"] = []
     if payload.get("filings", {}).get("available"):
@@ -1238,9 +1257,9 @@ def filter_payload_by_tier(payload, tier):
         payload["filings"]["filingsCount"] = sum(len(v) for v in cat.values())
         payload["filings"]["categorized"] = {"10-K": [], "10-Q": [], "8-K": [], "DEF 14A": [], "other": []}
     payload["locked"] = [
-        "history", "intraday", "fullFinancials", "fullValuation", "filings",
-        "news", "holders", "analyst", "legal", "forecasts", "earnings",
-        "esg", "peers", "sector", "capitalEvents",
+        "aiBrief", "researchJournal", "alerts", "filings", "news",
+        "holders", "analyst", "legal", "forecasts", "earnings",
+        "capitalEvents", "pdfExport",
     ]
     return payload
 
@@ -1252,21 +1271,15 @@ def filter_payload_by_tier(payload, tier):
 def index():
     user = current_user()
     watchlist = []
-    remaining = None
     if user:
         rows = get_db().execute(
             "SELECT ticker FROM watchlist WHERE user_id = ? ORDER BY added_at DESC LIMIT 6",
             (user["id"],)
         ).fetchall()
         watchlist = [r["ticker"] for r in rows]
-        if user["effective_tier"] == "free":
-            reset_lookups_if_new_day(user)
-            remaining = max(0, FREE_DAILY_LOOKUPS - (user.get("lookups_count") or 0))
     return render_template(
         "index.html",
         watchlist=watchlist,
-        remaining_lookups=remaining,
-        free_daily_lookups=FREE_DAILY_LOOKUPS,
         user_json=json.dumps(user_for_template(user)),
         prefilled_ticker=request.args.get("ticker", "").upper(),
     )
@@ -1901,6 +1914,410 @@ def api_chat_send(slug):
     return jsonify({"success": True, "message": serialize_message(dict(row))})
 
 
+# ============================================================================
+# AI COMPANY BRIEF (flagship Pro feature)
+# ============================================================================
+def _fmt_money(n):
+    if n is None:
+        return "unknown"
+    try:
+        n = float(n)
+    except (TypeError, ValueError):
+        return "unknown"
+    if abs(n) >= 1e12: return f"${n/1e12:.2f}T"
+    if abs(n) >= 1e9:  return f"${n/1e9:.2f}B"
+    if abs(n) >= 1e6:  return f"${n/1e6:.2f}M"
+    return f"${n:,.0f}"
+
+
+def _generate_ai_brief(ticker, t, info, filings, financials):
+    if not ANTHROPIC_ENABLED:
+        return None
+    client = anthropic.Anthropic(api_key=ANTHROPIC_API_KEY)
+
+    name = info.get("longName") or info.get("shortName") or ticker
+    sector = info.get("sector") or "Unknown"
+    industry = info.get("industry") or "Unknown"
+    employees = info.get("fullTimeEmployees")
+    summary = (info.get("longBusinessSummary") or "")[:2000]
+    market_cap = info.get("marketCap")
+    revenue = (financials.get("income", {}).get("revenue") or [{}])[-1].get("value") if financials.get("income", {}).get("revenue") else None
+    net_income = (financials.get("income", {}).get("netIncome") or [{}])[-1].get("value") if financials.get("income", {}).get("netIncome") else None
+    fcf = (financials.get("cash", {}).get("freeCashFlow") or [{}])[-1].get("value") if financials.get("cash", {}).get("freeCashFlow") else None
+    debt = (financials.get("balance", {}).get("totalDebt") or [{}])[-1].get("value") if financials.get("balance", {}).get("totalDebt") else None
+    pe = info.get("trailingPE")
+    profit_margin = info.get("profitMargins")
+
+    recent_events = []
+    cat = (filings or {}).get("categorized", {})
+    for f in (cat.get("8-K") or [])[:6]:
+        recent_events.append(f"  - {f['filingDate']}: {f.get('description') or '8-K material event'}")
+    if cat.get("10-K"):
+        recent_events.append(f"  - {cat['10-K'][0]['filingDate']}: Most recent 10-K annual report")
+
+    prompt = f"""You are an equity analyst writing a research brief for an individual investor researching {name} ({ticker}). Use only the data below. Do not invent numbers, ratings, or events not listed.
+
+COMPANY DATA:
+- Sector: {sector}
+- Industry: {industry}
+- Employees: {employees if employees else "unknown"}
+- Market cap: {_fmt_money(market_cap)}
+- Latest annual revenue: {_fmt_money(revenue)}
+- Latest annual net income: {_fmt_money(net_income)}
+- Latest free cash flow: {_fmt_money(fcf)}
+- Total debt: {_fmt_money(debt)}
+- Trailing P/E: {pe:.1f if pe else "n/a"}
+- Profit margin: {f"{profit_margin*100:.1f}%" if profit_margin else "n/a"}
+
+BUSINESS DESCRIPTION (from 10-K):
+{summary}
+
+RECENT SEC FILINGS (chronological, most recent first):
+{chr(10).join(recent_events) if recent_events else "  - No recent filings available"}
+
+YOUR TASK:
+Write a 3-paragraph plain-English brief for a retail investor who's never heard of this company. Each paragraph 4 to 6 sentences.
+
+Paragraph 1, "What it does": Explain the business model in clear language. Who pays them and for what. What's the core product or service. Don't just rephrase the description, distill it.
+
+Paragraph 2, "Financial picture": Use the actual numbers. Comment on profitability, leverage, and capital efficiency. Whether the business looks healthy on the numbers alone. Cite specifics.
+
+Paragraph 3, "Recent moves and risks": What material events have happened recently per the 8-K filings. What are the known risk factors based on the business and sector. What should an investor watch.
+
+Rules:
+- No price targets, no buy/sell recommendations, no "should you invest"
+- Cite specific numbers from the data above
+- Plain English, no jargon. If you must use a term, define it
+- Do not say anything that isn't supported by the data above
+- End with a single line: "Sources: 10-K filing, recent 8-K disclosures, market data"
+"""
+    try:
+        message = client.messages.create(
+            model=AI_BRIEF_MODEL,
+            max_tokens=1500,
+            messages=[{"role": "user", "content": prompt}],
+        )
+        text = message.content[0].text.strip()
+        return text
+    except Exception as e:
+        app.logger.exception("AI brief generation failed: %s", e)
+        return None
+
+
+def _ai_brief_quota_check(user):
+    """Apprentice gets APPRENTICE_AI_BRIEFS_PER_DAY, Patron/Lifetime/Owner unlimited."""
+    if user.get("is_owner") or user.get("lifetime") or user["effective_tier"] == "patron":
+        return True, None
+    if user["effective_tier"] == "free":
+        return False, "AI briefs are a Pro feature. Upgrade to Apprentice or Patron to unlock."
+    # apprentice
+    cutoff = (datetime.now(tz=timezone.utc) - timedelta(hours=24)).isoformat()
+    used = get_db().execute(
+        "SELECT COUNT(*) AS c FROM ai_brief_usage WHERE user_id = ? AND used_at > ?",
+        (user["id"], cutoff),
+    ).fetchone()["c"]
+    if used >= APPRENTICE_AI_BRIEFS_PER_DAY:
+        return False, f"Daily AI brief limit reached ({APPRENTICE_AI_BRIEFS_PER_DAY}). Upgrade to Patron for unlimited."
+    return True, None
+
+
+@app.route("/api/ai-brief/<ticker>")
+@login_required
+def api_ai_brief(ticker):
+    user = current_user()
+    raw = (ticker or "").strip().upper()
+    if not re.fullmatch(r"[A-Z][A-Z0-9.\-]{0,9}", raw):
+        return jsonify({"error": "Invalid ticker."}), 400
+
+    ok, msg = _ai_brief_quota_check(user)
+    if not ok:
+        return jsonify({"error": msg, "upgradeRequired": True,
+                        "upgradeUrl": url_for("subscribe_page")}), 403
+
+    if not ANTHROPIC_ENABLED:
+        return jsonify({
+            "error": "AI briefs aren't configured on this server. Set the ANTHROPIC_API_KEY environment variable.",
+            "configMissing": True,
+        }), 503
+
+    db = get_db()
+    # Check cache (briefs are good for 24h)
+    cutoff = (datetime.now(tz=timezone.utc) - timedelta(hours=AI_BRIEF_CACHE_HOURS)).isoformat()
+    cached = db.execute(
+        "SELECT brief, generated_at FROM ai_briefs WHERE ticker = ? AND generated_at > ?",
+        (raw, cutoff),
+    ).fetchone()
+    if cached:
+        db.execute(
+            "INSERT INTO ai_brief_usage (user_id, ticker) VALUES (?, ?)",
+            (user["id"], raw),
+        )
+        db.commit()
+        return jsonify({
+            "ticker": raw, "brief": cached["brief"],
+            "generatedAt": cached["generated_at"], "cached": True,
+        })
+
+    # Generate fresh
+    try:
+        t = yf.Ticker(raw)
+        info = t.info or {}
+    except Exception as e:
+        return jsonify({"error": f"Failed to fetch data: {e}"}), 500
+    if not info:
+        return jsonify({"error": f"No data for {raw}."}), 404
+
+    filings = get_sec_filings(raw)
+    financials = get_financials(t)
+    brief = _generate_ai_brief(raw, t, info, filings, financials)
+    if not brief:
+        return jsonify({"error": "Could not generate brief. Try again in a moment."}), 500
+
+    now = datetime.now(tz=timezone.utc).isoformat()
+    db.execute(
+        """INSERT INTO ai_briefs (ticker, brief, generated_at) VALUES (?, ?, ?)
+           ON CONFLICT(ticker) DO UPDATE SET brief = excluded.brief, generated_at = excluded.generated_at""",
+        (raw, brief, now),
+    )
+    db.execute("INSERT INTO ai_brief_usage (user_id, ticker) VALUES (?, ?)", (user["id"], raw))
+    db.commit()
+    return jsonify({"ticker": raw, "brief": brief, "generatedAt": now, "cached": False})
+
+
+# ============================================================================
+# RESEARCH JOURNAL
+# ============================================================================
+@app.route("/journal")
+@login_required
+def journal_page():
+    user = current_user()
+    rows = get_db().execute(
+        """SELECT id, ticker, thesis, what_must_be_true, what_changes_mind,
+                  entry_target, exit_target, notes, revision_number, created_at, updated_at
+           FROM research_notes WHERE user_id = ? ORDER BY updated_at DESC""",
+        (user["id"],),
+    ).fetchall()
+    return render_template(
+        "journal.html",
+        notes=[dict(r) for r in rows],
+        apprentice_limit=APPRENTICE_JOURNAL_TICKERS,
+    )
+
+
+@app.route("/journal/<ticker>")
+@login_required
+def journal_ticker(ticker):
+    user = current_user()
+    raw = (ticker or "").strip().upper()
+    note = get_db().execute(
+        "SELECT * FROM research_notes WHERE user_id = ? AND ticker = ?",
+        (user["id"], raw),
+    ).fetchone()
+    revisions = []
+    if note:
+        revisions = get_db().execute(
+            "SELECT id, snapshot, saved_at FROM note_revisions WHERE note_id = ? ORDER BY saved_at DESC LIMIT 20",
+            (note["id"],),
+        ).fetchall()
+        revisions = [dict(r) for r in revisions]
+    return render_template(
+        "journal_entry.html",
+        ticker=raw,
+        note=dict(note) if note else None,
+        revisions=revisions,
+    )
+
+
+@app.route("/api/journal", methods=["GET", "POST"])
+@login_required
+def api_journal():
+    user = current_user()
+    db = get_db()
+    if request.method == "GET":
+        rows = db.execute(
+            "SELECT * FROM research_notes WHERE user_id = ? ORDER BY updated_at DESC",
+            (user["id"],),
+        ).fetchall()
+        return jsonify({"notes": [dict(r) for r in rows]})
+
+    if user["effective_tier"] == "free":
+        return jsonify({
+            "error": "The research journal is a Pro feature. Upgrade to save your thesis on any stock.",
+            "upgradeRequired": True,
+            "upgradeUrl": url_for("subscribe_page"),
+        }), 403
+
+    data = request.get_json(silent=True) or {}
+    ticker = (data.get("ticker") or "").strip().upper()
+    if not re.fullmatch(r"[A-Z][A-Z0-9.\-]{0,9}", ticker):
+        return jsonify({"error": "Invalid ticker."}), 400
+
+    # Apprentice gets a journal ticker cap
+    if user["effective_tier"] == "apprentice":
+        existing = db.execute(
+            "SELECT 1 FROM research_notes WHERE user_id = ? AND ticker = ?",
+            (user["id"], ticker),
+        ).fetchone()
+        if not existing:
+            count = db.execute(
+                "SELECT COUNT(DISTINCT ticker) AS c FROM research_notes WHERE user_id = ?",
+                (user["id"],),
+            ).fetchone()["c"]
+            if count >= APPRENTICE_JOURNAL_TICKERS:
+                return jsonify({
+                    "error": f"Apprentice tier allows journals on up to {APPRENTICE_JOURNAL_TICKERS} stocks. Upgrade to Patron for unlimited.",
+                    "upgradeRequired": True,
+                    "upgradeUrl": url_for("subscribe_page"),
+                }), 403
+
+    fields = {
+        "thesis": (data.get("thesis") or "").strip()[:5000],
+        "what_must_be_true": (data.get("whatMustBeTrue") or "").strip()[:3000],
+        "what_changes_mind": (data.get("whatChangesMind") or "").strip()[:3000],
+        "notes": (data.get("notes") or "").strip()[:10000],
+    }
+    try:
+        entry_target = float(data["entryTarget"]) if data.get("entryTarget") not in (None, "") else None
+        exit_target = float(data["exitTarget"]) if data.get("exitTarget") not in (None, "") else None
+    except (TypeError, ValueError):
+        return jsonify({"error": "Entry and exit targets must be numbers."}), 400
+
+    now = datetime.now(tz=timezone.utc).isoformat()
+    existing = db.execute(
+        "SELECT id, revision_number FROM research_notes WHERE user_id = ? AND ticker = ?",
+        (user["id"], ticker),
+    ).fetchone()
+    if existing:
+        # Snapshot previous version into revisions
+        prev = db.execute("SELECT * FROM research_notes WHERE id = ?", (existing["id"],)).fetchone()
+        if prev:
+            db.execute(
+                "INSERT INTO note_revisions (note_id, snapshot) VALUES (?, ?)",
+                (existing["id"], json.dumps(dict(prev), default=str)),
+            )
+        new_rev = (existing["revision_number"] or 1) + 1
+        db.execute(
+            """UPDATE research_notes
+               SET thesis=?, what_must_be_true=?, what_changes_mind=?,
+                   entry_target=?, exit_target=?, notes=?,
+                   revision_number=?, updated_at=?
+               WHERE id=?""",
+            (fields["thesis"], fields["what_must_be_true"], fields["what_changes_mind"],
+             entry_target, exit_target, fields["notes"], new_rev, now, existing["id"]),
+        )
+        note_id = existing["id"]
+    else:
+        cur = db.execute(
+            """INSERT INTO research_notes
+               (user_id, ticker, thesis, what_must_be_true, what_changes_mind,
+                entry_target, exit_target, notes, revision_number, created_at, updated_at)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?, 1, ?, ?)""",
+            (user["id"], ticker, fields["thesis"], fields["what_must_be_true"],
+             fields["what_changes_mind"], entry_target, exit_target,
+             fields["notes"], now, now),
+        )
+        note_id = cur.lastrowid
+    db.commit()
+    return jsonify({"success": True, "id": note_id, "ticker": ticker})
+
+
+@app.route("/api/journal/<int:note_id>", methods=["DELETE"])
+@login_required
+def api_journal_delete(note_id):
+    user = current_user()
+    get_db().execute(
+        "DELETE FROM research_notes WHERE id = ? AND user_id = ?",
+        (note_id, user["id"]),
+    )
+    get_db().commit()
+    return jsonify({"success": True})
+
+
+# ============================================================================
+# COMPARISON TOOL
+# ============================================================================
+@app.route("/compare")
+@login_required
+def compare_page():
+    tickers_param = request.args.get("tickers", "")
+    tickers = [t.strip().upper() for t in tickers_param.split(",") if t.strip()]
+    tickers = [t for t in tickers if re.fullmatch(r"[A-Z][A-Z0-9.\-]{0,9}", t)][:4]
+    rows = []
+    if tickers:
+        for sym in tickers:
+            try:
+                tk = yf.Ticker(sym)
+                i = tk.info or {}
+                if not (i.get("longName") or i.get("regularMarketPrice")):
+                    continue
+                rows.append({
+                    "ticker": sym,
+                    "name": i.get("longName") or i.get("shortName") or sym,
+                    "sector": i.get("sector"),
+                    "price": _num(i.get("currentPrice") or i.get("regularMarketPrice")),
+                    "marketCap": _num(i.get("marketCap")),
+                    "peRatio": _num(i.get("trailingPE")),
+                    "forwardPE": _num(i.get("forwardPE")),
+                    "pegRatio": _num(i.get("pegRatio") or i.get("trailingPegRatio")),
+                    "priceToBook": _num(i.get("priceToBook")),
+                    "priceToSales": _num(i.get("priceToSalesTrailing12Months")),
+                    "evToEbitda": _num(i.get("enterpriseToEbitda")),
+                    "profitMargin": _num(i.get("profitMargins")),
+                    "operatingMargin": _num(i.get("operatingMargins")),
+                    "grossMargin": _num(i.get("grossMargins")),
+                    "returnOnEquity": _num(i.get("returnOnEquity")),
+                    "returnOnAssets": _num(i.get("returnOnAssets")),
+                    "debtToEquity": _num(i.get("debtToEquity")),
+                    "revenueGrowth": _num(i.get("revenueGrowth")),
+                    "earningsGrowth": _num(i.get("earningsGrowth")),
+                    "dividendYield": _num(i.get("dividendYield")),
+                    "beta": _num(i.get("beta")),
+                    "fiftyTwoWeekChangePct": _num(i.get("52WeekChange") or i.get("fiftyTwoWeekChange")),
+                })
+            except Exception:
+                continue
+    return render_template("compare.html", tickers=tickers, rows=rows)
+
+
+# ============================================================================
+# PRINT-FRIENDLY RESEARCH VIEW (export to PDF via browser)
+# ============================================================================
+@app.route("/research/<ticker>/print")
+@login_required
+def research_print(ticker):
+    user = current_user()
+    if user["effective_tier"] == "free":
+        flash("PDF export is a Pro feature. Upgrade to print your research.", "error")
+        return redirect(url_for("subscribe_page"))
+    raw = (ticker or "").strip().upper()
+    if not re.fullmatch(r"[A-Z][A-Z0-9.\-]{0,9}", raw):
+        return redirect(url_for("index"))
+    try:
+        t = yf.Ticker(raw)
+        info = t.info or {}
+    except Exception:
+        flash("Could not load data.", "error")
+        return redirect(url_for("index"))
+    note = get_db().execute(
+        "SELECT * FROM research_notes WHERE user_id = ? AND ticker = ?",
+        (user["id"], raw),
+    ).fetchone()
+    filings = get_sec_filings(raw)
+    return render_template(
+        "research_print.html",
+        ticker=raw,
+        overview=get_overview(t, info),
+        quote=get_quote(info),
+        valuation=get_valuation(info, t),
+        financials=get_financials(t),
+        filings=filings,
+        legal_signals=get_legal_signals(filings),
+        capital_events=get_capital_events(filings),
+        note=dict(note) if note else None,
+        generated_at=datetime.now().strftime("%B %d, %Y"),
+    )
+
+
 @app.route("/api/chat/active-users")
 @login_required
 def api_chat_active_users():
@@ -1949,10 +2366,6 @@ def api_me():
     user = current_user()
     if not user:
         return jsonify({"authenticated": False})
-    remaining = None
-    if user["effective_tier"] == "free":
-        reset_lookups_if_new_day(user)
-        remaining = max(0, FREE_DAILY_LOOKUPS - (user.get("lookups_count") or 0))
     return jsonify({
         "authenticated": True,
         "email": user["email"],
@@ -1960,7 +2373,6 @@ def api_me():
         "tier": user["effective_tier"],
         "isOwner": bool(user.get("is_owner")),
         "lifetime": bool(user.get("lifetime")),
-        "lookupsRemaining": remaining,
     })
 
 
@@ -1971,10 +2383,6 @@ def research():
     raw = (request.args.get("ticker") or "").strip().upper()
     if not raw or not re.fullmatch(r"[A-Z][A-Z0-9.\-]{0,9}", raw):
         return jsonify({"error": "Please enter a valid ticker symbol."}), 400
-    ok, msg = can_lookup(user)
-    if not ok:
-        return jsonify({"error": msg, "upgradeRequired": True,
-                        "upgradeUrl": url_for("subscribe_page")}), 403
     try:
         t = yf.Ticker(raw)
         info = t.info or {}
@@ -1982,8 +2390,6 @@ def research():
         return jsonify({"error": f"Failed to fetch data: {e}"}), 500
     if not info or not (info.get("longName") or info.get("shortName") or info.get("regularMarketPrice")):
         return jsonify({"error": f"No data for ticker '{raw}'."}), 404
-    if user["effective_tier"] == "free":
-        increment_lookups(user["id"])
     filings = get_sec_filings(raw)
     history = get_history(t)
     overview = get_overview(t, info)

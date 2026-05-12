@@ -24,6 +24,8 @@
           {% if user %}
             <a href="{{ url_for('index') }}" class="nav-link {% if request.endpoint == 'index' %}active{% endif %}">Research</a>
             <a href="{{ url_for('watchlist_page') }}" class="nav-link {% if request.endpoint == 'watchlist_page' %}active{% endif %}">Watchlist</a>
+            <a href="{{ url_for('journal_page') }}" class="nav-link {% if request.endpoint in ['journal_page','journal_ticker'] %}active{% endif %}">Journal</a>
+            <a href="{{ url_for('compare_page') }}" class="nav-link {% if request.endpoint == 'compare_page' %}active{% endif %}">Compare</a>
             <a href="{{ url_for('portfolio_page') }}" class="nav-link {% if request.endpoint == 'portfolio_page' %}active{% endif %}">Portfolio</a>
             <a href="{{ url_for('alerts_page') }}" class="nav-link {% if request.endpoint == 'alerts_page' %}active{% endif %}">Alerts</a>
             <a href="{{ url_for('community_home') }}" class="nav-link {% if request.endpoint in ['community_home','community_room'] %}active{% endif %}">Community</a>

@@ -1,0 +1,120 @@
+{% extends "_layout.html" %}
+{% block title %}{{ ticker }} thesis, Equity Research Hub{% endblock %}
+{% block content %}
+  <section class="hero">
+    <div class="hero-inner">
+      <p class="eyebrow"><a href="{{ url_for('journal_page') }}">← All entries</a></p>
+      <h2 class="hero-title">{{ ticker }} <span style="font-weight:400;color:var(--text-muted);font-size:0.7em;">thesis</span></h2>
+      <p class="hero-lede">Write what you actually think. Make it the version your future self can read and learn from.</p>
+    </div>
+  </section>
+
+  <form id="thesisForm" class="journal-form">
+    <input type="hidden" name="ticker" value="{{ ticker }}">
+
+    <div class="thesis-field">
+      <label for="thesis"><span class="thesis-label-num">1</span> Why are you watching this stock?</label>
+      <textarea id="thesis" name="thesis" rows="5" placeholder="Plain English. What's the opportunity you see. What's the core thesis.">{{ note.thesis if note else '' }}</textarea>
+    </div>
+
+    <div class="thesis-field">
+      <label for="whatMustBeTrue"><span class="thesis-label-num">2</span> What needs to remain true for this to work?</label>
+      <textarea id="whatMustBeTrue" name="whatMustBeTrue" rows="4" placeholder="The 2 or 3 conditions your thesis depends on. Revenue growth above X. Margins holding above Y. Etc.">{{ note.what_must_be_true if note else '' }}</textarea>
+    </div>
+
+    <div class="thesis-field">
+      <label for="whatChangesMind"><span class="thesis-label-num">3</span> What would change your mind?</label>
+      <textarea id="whatChangesMind" name="whatChangesMind" rows="4" placeholder="What signal, event, or number would make you sell or stop watching.">{{ note.what_changes_mind if note else '' }}</textarea>
+    </div>
+
+    <div class="thesis-target-row">
+      <div class="thesis-field">
+        <label for="entryTarget"><span class="thesis-label-num">4</span> Entry zone (price you'd buy at)</label>
+        <input id="entryTarget" name="entryTarget" type="number" step="any" placeholder="e.g. 145.00" value="{{ note.entry_target if note and note.entry_target else '' }}">
+      </div>
+      <div class="thesis-field">
+        <label for="exitTarget"><span class="thesis-label-num">5</span> Exit zone (price you'd sell at)</label>
+        <input id="exitTarget" name="exitTarget" type="number" step="any" placeholder="e.g. 200.00" value="{{ note.exit_target if note and note.exit_target else '' }}">
+      </div>
+    </div>
+
+    <div class="thesis-field">
+      <label for="notes"><span class="thesis-label-num">6</span> Notes &amp; observations</label>
+      <textarea id="notes" name="notes" rows="8" placeholder="Anything else. Earnings reactions. Insider activity. Why you're not buying yet. Quotes from the 10-K that stuck with you.">{{ note.notes if note else '' }}</textarea>
+    </div>
+
+    <div class="thesis-actions">
+      <button type="submit" class="btn-primary">{% if note %}Save revision{% else %}Save thesis{% endif %}</button>
+      <a href="{{ url_for('index', ticker=ticker) }}" class="btn-secondary">Open research</a>
+      {% if note %}
+        <button type="button" id="deleteBtn" class="btn-text-danger">Delete entry</button>
+      {% endif %}
+    </div>
+  </form>
+
+  {% if revisions %}
+    <section class="affiliate-section">
+      <div class="affiliate-section-header">
+        <h3 class="section-title">Revision history</h3>
+        <span class="section-subtitle">{{ revisions|length }} prior version{{ '' if revisions|length == 1 else 's' }}</span>
+      </div>
+      <ul class="revision-list">
+        {% for r in revisions %}
+          <li>
+            <span class="mono">{{ r.saved_at[:16].replace('T', ' ') }}</span>
+            <details><summary>View snapshot</summary><pre class="revision-snapshot">{{ r.snapshot }}</pre></details>
+          </li>
+        {% endfor %}
+      </ul>
+    </section>
+  {% endif %}
+{% endblock %}
+{% block scripts %}
+<script>
+document.getElementById('thesisForm').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const form = e.target;
+  const data = {
+    ticker: form.ticker.value,
+    thesis: form.thesis.value,
+    whatMustBeTrue: form.whatMustBeTrue.value,
+    whatChangesMind: form.whatChangesMind.value,
+    entryTarget: form.entryTarget.value,
+    exitTarget: form.exitTarget.value,
+    notes: form.notes.value,
+  };
+  const btn = form.querySelector('button[type="submit"]');
+  btn.disabled = true; btn.textContent = 'Saving…';
+  try {
+    const res = await fetch('/api/journal', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify(data),
+    });
+    const result = await res.json();
+    if (result.success) {
+      btn.textContent = 'Saved';
+      setTimeout(() => location.reload(), 500);
+    } else if (result.upgradeRequired) {
+      if (confirm(result.error + '\n\nView plans?')) {
+        window.location.href = result.upgradeUrl;
+      } else {
+        btn.disabled = false; btn.textContent = 'Save thesis';
+      }
+    } else {
+      alert(result.error || 'Could not save.');
+      btn.disabled = false; btn.textContent = 'Save thesis';
+    }
+  } catch (e) { alert('Network error: ' + e.message); btn.disabled = false; }
+});
+
+const delBtn = document.getElementById('deleteBtn');
+if (delBtn) {
+  delBtn.addEventListener('click', async () => {
+    if (!confirm('Delete this entire thesis entry? This cannot be undone.')) return;
+    const res = await fetch('/api/journal/{{ note.id if note else 0 }}', {method: 'DELETE'});
+    if (res.ok) window.location.href = '/journal';
+  });
+}
+</script>
+{% endblock %}

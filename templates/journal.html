@@ -1,0 +1,54 @@
+{% extends "_layout.html" %}
+{% block title %}Research Journal, Equity Research Hub{% endblock %}
+{% block content %}
+  <section class="hero">
+    <div class="hero-inner">
+      <p class="eyebrow">Your research journal</p>
+      <h2 class="hero-title">Your thesis. Tracked. Stress-tested over time.</h2>
+      <p class="hero-lede">Save your investment thesis on any stock. Why you're watching it, what needs to remain true, what would change your mind, where you'd buy, where you'd sell. We keep every revision so you can see how your thinking evolved.</p>
+    </div>
+  </section>
+
+  {% if user.effective_tier == 'free' %}
+    <div class="info-banner">
+      <strong>Research journal is a Pro feature.</strong> The free tier shows you the data. Pro turns it into a process. <a href="{{ url_for('subscribe_page') }}">See plans</a>.
+    </div>
+  {% elif user.effective_tier == 'apprentice' %}
+    <div class="info-banner">
+      Apprentice tier allows journals on up to <strong>{{ apprentice_limit }}</strong> stocks. <a href="{{ url_for('subscribe_page') }}">Upgrade to Patron</a> for unlimited.
+    </div>
+  {% endif %}
+
+  {% if not notes %}
+    <div class="empty-state">
+      <div class="empty-icon">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/><path d="M9 13h6"/><path d="M9 17h6"/></svg>
+      </div>
+      <h3>No journal entries yet</h3>
+      <p>Look up a stock, click <strong>Save thesis</strong> on the research page, and your entries will appear here.</p>
+      <a href="{{ url_for('index') }}" class="btn-primary">Research a stock</a>
+    </div>
+  {% else %}
+    <div class="journal-grid">
+      {% for n in notes %}
+        <article class="journal-card">
+          <div class="journal-card-header">
+            <a href="{{ url_for('journal_ticker', ticker=n.ticker) }}" class="journal-ticker">{{ n.ticker }}</a>
+            <span class="journal-rev">rev {{ n.revision_number }}</span>
+          </div>
+          <p class="journal-date">Updated {{ n.updated_at[:10] }}</p>
+          {% if n.thesis %}
+            <p class="journal-snippet">{{ n.thesis[:240] }}{% if n.thesis|length > 240 %}…{% endif %}</p>
+          {% else %}
+            <p class="journal-snippet muted">No thesis written yet.</p>
+          {% endif %}
+          <div class="journal-targets">
+            {% if n.entry_target %}<span>Entry ≤ <strong>${{ "%.2f"|format(n.entry_target) }}</strong></span>{% endif %}
+            {% if n.exit_target %}<span>Exit ≥ <strong>${{ "%.2f"|format(n.exit_target) }}</strong></span>{% endif %}
+          </div>
+          <a href="{{ url_for('journal_ticker', ticker=n.ticker) }}" class="journal-open">Open thesis →</a>
+        </article>
+      {% endfor %}
+    </div>
+  {% endif %}
+{% endblock %}

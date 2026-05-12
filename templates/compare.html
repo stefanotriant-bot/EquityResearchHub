@@ -1,0 +1,77 @@
+{% extends "_layout.html" %}
+{% block title %}Compare stocks, Equity Research Hub{% endblock %}
+{% block content %}
+  <section class="hero">
+    <div class="hero-inner">
+      <p class="eyebrow">Side-by-side comparison</p>
+      <h2 class="hero-title">Compare up to 4 stocks at once.</h2>
+      <p class="hero-lede">See valuation, growth, margins, and balance sheet quality side by side. Spot the one that's actually cheaper, faster growing, or better run.</p>
+    </div>
+  </section>
+
+  <form method="GET" action="{{ url_for('compare_page') }}" class="compare-form">
+    <div class="compare-input-wrap">
+      <input name="tickers" type="text" placeholder="AAPL, MSFT, GOOGL, META" value="{{ tickers|join(',') }}" maxlength="60">
+      <button type="submit" class="btn-primary">Compare</button>
+    </div>
+    <p class="muted" style="font-size: 12px; margin-top: 8px;">Up to 4 tickers, separated by commas.</p>
+  </form>
+
+  {% if rows %}
+    <div style="overflow-x:auto; margin-top: 24px;">
+      <table class="compare-table">
+        <thead>
+          <tr>
+            <th style="text-align:left;">Metric</th>
+            {% for r in rows %}
+              <th>
+                <a href="{{ url_for('index', ticker=r.ticker) }}" class="compare-header-ticker">{{ r.ticker }}</a>
+                <p class="compare-header-name">{{ r.name[:30] }}</p>
+              </th>
+            {% endfor %}
+          </tr>
+        </thead>
+        <tbody>
+          <tr class="compare-section-row"><td colspan="{{ rows|length + 1 }}">Price &amp; size</td></tr>
+          <tr><td>Sector</td>{% for r in rows %}<td>{{ r.sector or '—' }}</td>{% endfor %}</tr>
+          <tr><td>Current price</td>{% for r in rows %}<td>{% if r.price %}${{ "%.2f"|format(r.price) }}{% else %}—{% endif %}</td>{% endfor %}</tr>
+          <tr><td>Market cap</td>{% for r in rows %}<td>{% if r.marketCap %}{% if r.marketCap >= 1e12 %}${{ "%.2f"|format(r.marketCap/1e12) }}T{% elif r.marketCap >= 1e9 %}${{ "%.2f"|format(r.marketCap/1e9) }}B{% else %}${{ "%.0f"|format(r.marketCap/1e6) }}M{% endif %}{% else %}—{% endif %}</td>{% endfor %}</tr>
+          <tr><td>52-week change</td>{% for r in rows %}<td class="{% if r.fiftyTwoWeekChangePct and r.fiftyTwoWeekChangePct > 0 %}cmp-up{% elif r.fiftyTwoWeekChangePct and r.fiftyTwoWeekChangePct < 0 %}cmp-down{% endif %}">{% if r.fiftyTwoWeekChangePct is not none %}{% if r.fiftyTwoWeekChangePct > 0 %}+{% endif %}{{ "%.1f"|format(r.fiftyTwoWeekChangePct * 100 if r.fiftyTwoWeekChangePct < 2 else r.fiftyTwoWeekChangePct) }}%{% else %}—{% endif %}</td>{% endfor %}</tr>
+
+          <tr class="compare-section-row"><td colspan="{{ rows|length + 1 }}">Valuation</td></tr>
+          <tr><td>P/E (trailing)</td>{% for r in rows %}<td>{% if r.peRatio %}{{ "%.1f"|format(r.peRatio) }}{% else %}—{% endif %}</td>{% endfor %}</tr>
+          <tr><td>P/E (forward)</td>{% for r in rows %}<td>{% if r.forwardPE %}{{ "%.1f"|format(r.forwardPE) }}{% else %}—{% endif %}</td>{% endfor %}</tr>
+          <tr><td>PEG ratio</td>{% for r in rows %}<td>{% if r.pegRatio %}{{ "%.2f"|format(r.pegRatio) }}{% else %}—{% endif %}</td>{% endfor %}</tr>
+          <tr><td>Price / Book</td>{% for r in rows %}<td>{% if r.priceToBook %}{{ "%.2f"|format(r.priceToBook) }}{% else %}—{% endif %}</td>{% endfor %}</tr>
+          <tr><td>Price / Sales</td>{% for r in rows %}<td>{% if r.priceToSales %}{{ "%.2f"|format(r.priceToSales) }}{% else %}—{% endif %}</td>{% endfor %}</tr>
+          <tr><td>EV / EBITDA</td>{% for r in rows %}<td>{% if r.evToEbitda %}{{ "%.1f"|format(r.evToEbitda) }}{% else %}—{% endif %}</td>{% endfor %}</tr>
+
+          <tr class="compare-section-row"><td colspan="{{ rows|length + 1 }}">Profitability</td></tr>
+          <tr><td>Gross margin</td>{% for r in rows %}<td>{% if r.grossMargin %}{{ "%.1f"|format(r.grossMargin * 100) }}%{% else %}—{% endif %}</td>{% endfor %}</tr>
+          <tr><td>Operating margin</td>{% for r in rows %}<td>{% if r.operatingMargin %}{{ "%.1f"|format(r.operatingMargin * 100) }}%{% else %}—{% endif %}</td>{% endfor %}</tr>
+          <tr><td>Profit margin</td>{% for r in rows %}<td>{% if r.profitMargin %}{{ "%.1f"|format(r.profitMargin * 100) }}%{% else %}—{% endif %}</td>{% endfor %}</tr>
+          <tr><td>Return on equity</td>{% for r in rows %}<td>{% if r.returnOnEquity %}{{ "%.1f"|format(r.returnOnEquity * 100) }}%{% else %}—{% endif %}</td>{% endfor %}</tr>
+          <tr><td>Return on assets</td>{% for r in rows %}<td>{% if r.returnOnAssets %}{{ "%.1f"|format(r.returnOnAssets * 100) }}%{% else %}—{% endif %}</td>{% endfor %}</tr>
+
+          <tr class="compare-section-row"><td colspan="{{ rows|length + 1 }}">Growth</td></tr>
+          <tr><td>Revenue growth (YoY)</td>{% for r in rows %}<td class="{% if r.revenueGrowth and r.revenueGrowth > 0 %}cmp-up{% elif r.revenueGrowth and r.revenueGrowth < 0 %}cmp-down{% endif %}">{% if r.revenueGrowth is not none %}{% if r.revenueGrowth > 0 %}+{% endif %}{{ "%.1f"|format(r.revenueGrowth * 100) }}%{% else %}—{% endif %}</td>{% endfor %}</tr>
+          <tr><td>Earnings growth (YoY)</td>{% for r in rows %}<td class="{% if r.earningsGrowth and r.earningsGrowth > 0 %}cmp-up{% elif r.earningsGrowth and r.earningsGrowth < 0 %}cmp-down{% endif %}">{% if r.earningsGrowth is not none %}{% if r.earningsGrowth > 0 %}+{% endif %}{{ "%.1f"|format(r.earningsGrowth * 100) }}%{% else %}—{% endif %}</td>{% endfor %}</tr>
+
+          <tr class="compare-section-row"><td colspan="{{ rows|length + 1 }}">Quality &amp; risk</td></tr>
+          <tr><td>Debt / Equity</td>{% for r in rows %}<td>{% if r.debtToEquity %}{{ "%.0f"|format(r.debtToEquity) }}{% else %}—{% endif %}</td>{% endfor %}</tr>
+          <tr><td>Dividend yield</td>{% for r in rows %}<td>{% if r.dividendYield %}{{ "%.2f"|format(r.dividendYield * 100 if r.dividendYield < 1 else r.dividendYield) }}%{% else %}—{% endif %}</td>{% endfor %}</tr>
+          <tr><td>Beta</td>{% for r in rows %}<td>{% if r.beta %}{{ "%.2f"|format(r.beta) }}{% else %}—{% endif %}</td>{% endfor %}</tr>
+        </tbody>
+      </table>
+    </div>
+  {% elif tickers %}
+    <div class="empty-state">
+      <h3>Couldn't load data for those tickers</h3>
+      <p>Check the spelling and try again. Use dashes for share classes like <code>BRK-B</code>.</p>
+    </div>
+  {% else %}
+    <div class="empty-state">
+      <p>Enter 2 to 4 ticker symbols above to start comparing.</p>
+    </div>
+  {% endif %}
+{% endblock %}

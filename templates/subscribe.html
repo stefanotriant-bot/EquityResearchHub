@@ -82,20 +82,23 @@
       </div>
       <p class="tier-cta-note">No credit card. Sign up takes 30 seconds.</p>
       <ul class="tier-features">
-        <li>Look up <strong>{{ free_daily_lookups }}</strong> stocks per day</li>
+        <li><strong>Unlimited</strong> stock lookups</li>
         <li>Save up to <strong>{{ free_watchlist_limit }}</strong> stocks to your watchlist</li>
-        <li>Company info and current stock price</li>
-        <li>Yearly revenue and profit</li>
-        <li>The most common stock ratios (like P/E)</li>
+        <li>Company overview, current quote, and full historical financials</li>
+        <li>12-month price chart with hover detail and moving averages</li>
+        <li>All valuation metrics (P/E, P/B, ROE, ROIC, FCF yield, margins)</li>
+        <li>Peer comparison and sector performance</li>
+        <li>ESG scores</li>
+        <li>Built-in DCF valuation calculator</li>
       </ul>
-      <p class="tier-locked-heading">Not included:</p>
+      <p class="tier-locked-heading">Pro features (locked on free):</p>
       <ul class="tier-features tier-features-locked">
-        <li>The 12-month price chart</li>
-        <li>Full financial statements</li>
-        <li>Documents the company filed with the SEC</li>
-        <li>News and what professional analysts think</li>
-        <li>Lawsuits and other big company events</li>
-        <li>Which big funds own the stock</li>
+        <li>AI-generated company brief</li>
+        <li>Research journal with thesis tracking</li>
+        <li>Custom price and metric alerts</li>
+        <li>Recent news and SEC filings</li>
+        <li>Analyst targets and recommendations</li>
+        <li>PDF research note export</li>
       </ul>
       <div class="tier-cta">
         {% if user and user.effective_tier == 'free' %}
@@ -123,15 +126,16 @@
          data-monthly="Billed monthly. Cancel anytime."
          data-yearly="Billed ${{ '%.0f'|format(plans.apprentice.yearly) }}/year. Save {{ ((1 - (plans.apprentice.yearly / (plans.apprentice.monthly * 12))) * 100)|round|int }}%.">Billed monthly. Cancel anytime.</p>
       <ul class="tier-features">
-        <li><strong>Unlimited</strong> stock lookups per day</li>
-        <li><strong>Unlimited</strong> stocks saved to your watchlist</li>
-        <li>Full financial statements (income, balance sheet, cash flow)</li>
-        <li>12-month price chart that shows the price when you hover</li>
-        <li>The company's yearly 10-K report (linked straight to the SEC)</li>
-        <li>Latest news for each company</li>
-        <li>All the standard stock ratios and metrics</li>
+        <li>Everything in Free, plus:</li>
+        <li><strong>AI company briefs</strong>, up to 10 per day, the flagship feature</li>
+        <li><strong>Research journal</strong> on up to 5 stocks, with revision history</li>
+        <li><strong>5 active alerts</strong> on price, P/E, or volume thresholds</li>
+        <li>Unlimited watchlist saves</li>
+        <li>Recent company news feed</li>
+        <li>SEC filings access (10-K and 10-Q)</li>
+        <li>PDF research note export, with your thesis included</li>
       </ul>
-      <p class="tier-why"><strong>Why pay?</strong> Free shows you the basics. Apprentice shows you the real numbers, straight from the company's own reports.</p>
+      <p class="tier-why"><strong>Why pay?</strong> Free shows you the data. Apprentice gives you the AI brief and lets you save a thesis. This is what turns Yahoo Finance into a research workflow.</p>
       <div class="tier-cta">
         <button type="button" class="btn-primary tier-subscribe" data-plan="apprentice"{% if not user %} disabled{% endif %}>
           {% if user and user.effective_tier == 'apprentice' %}Current plan
@@ -158,15 +162,16 @@
          data-yearly="Billed ${{ '%.0f'|format(plans.patron.yearly) }}/year. Save {{ ((1 - (plans.patron.yearly / (plans.patron.monthly * 12))) * 100)|round|int }}%.">Billed monthly. Cancel anytime.</p>
       <ul class="tier-features">
         <li><strong>Everything in Apprentice, plus:</strong></li>
-        <li>All SEC filings (yearly, quarterly, proxy votes, and more)</li>
-        <li>Big events like lawsuits and accounting changes (from 8-K filings)</li>
-        <li>Which big investment funds own the most shares</li>
-        <li>What Wall Street analysts say the stock is worth</li>
-        <li>Your own private notes on every stock you save</li>
-        <li>Faster price updates while the market is open</li>
-        <li>Access to the private community of paying members</li>
+        <li><strong>Unlimited AI briefs</strong> on every stock you research</li>
+        <li><strong>Unlimited research journal</strong> with full revision history</li>
+        <li><strong>Unlimited alerts</strong>, price, P/E, volume, no caps</li>
+        <li>All SEC filings (10-K, 10-Q, 8-K, proxies, insider forms)</li>
+        <li>Material events feed, lawsuits, restatements, executive changes</li>
+        <li>Top institutional holders (13F-reported)</li>
+        <li>Analyst price targets and buy/sell consensus</li>
+        <li>Founder community access</li>
       </ul>
-      <p class="tier-why"><strong>Why pay?</strong> Big problems often show up in a company's SEC filings before the news writes about them. Patron is how you spot those things first.</p>
+      <p class="tier-why"><strong>Why pay?</strong> Most stock disasters show up in 8-K filings days before the news writes about them. Patron is the tier where you see them coming and have a journal to track what you do about it.</p>
       <div class="tier-cta">
         <button type="button" class="btn-primary tier-subscribe" data-plan="patron"{% if not user %} disabled{% endif %}>
           {% if user and user.effective_tier == 'patron' %}Current plan

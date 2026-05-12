@@ -3,9 +3,9 @@
 {% block content %}
   <section class="hero" id="hero">
     <div class="hero-inner">
-      <p class="eyebrow">Research a public company</p>
-      <h2 class="hero-title">Look up a ticker. Get the info you'd want before writing a check.</h2>
-      <p class="hero-lede">See the price, the financials over time, SEC filings, big events, what analysts think, and who owns it. All pulled from the original sources and laid out so it's easy to read.</p>
+      <p class="eyebrow">For DIY value investors who do their own homework</p>
+      <h2 class="hero-title">Read the file before you write the check.</h2>
+      <p class="hero-lede">A research workflow for individual investors who want institutional-grade tools without the institutional bill. Type a ticker. Read the AI-generated brief. Save your thesis. Track what you actually thought when you bought, sold, or passed.</p>
 
       {% if user %}
         <div class="user-greeting">
@@ -14,15 +14,15 @@
           {% elif user.lifetime %}
             Welcome back, <strong>{{ user.display_name or user.email }}</strong>, Patron access for life.
           {% elif user.effective_tier == 'free' %}
-            Welcome back, <strong>{{ user.display_name or user.email }}</strong>. You have <strong>{{ remaining_lookups }} of {{ free_daily_lookups }}</strong> free lookups left today. <a href="{{ url_for('subscribe_page') }}">Upgrade for unlimited.</a>
+            Welcome back, <strong>{{ user.display_name or user.email }}</strong>. Free tier, full market data. <a href="{{ url_for('subscribe_page') }}">Unlock AI briefs and your journal →</a>
           {% else %}
-            Welcome back, <strong>{{ user.display_name or user.email }}</strong>. {{ user.effective_tier|capitalize }} tier, unlimited lookups.
+            Welcome back, <strong>{{ user.display_name or user.email }}</strong>. {{ user.effective_tier|capitalize }} tier.
           {% endif %}
         </div>
       {% else %}
         <div class="signup-cta">
           <a href="{{ url_for('signup_page') }}" class="btn-secondary">Sign up free</a>
-          <span class="muted">Start with 3 lookups a day. No card required.</span>
+          <span class="muted">Unlimited stock lookups, no credit card. Pro features start at $9.99.</span>
         </div>
       {% endif %}
 
@@ -58,29 +58,47 @@
     </div>
   </section>
 
-  {% if not user %}
-    <section class="features-strip">
-      <div class="features-grid">
-        <div class="feature">
-          <div class="feature-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 3v18h18"/><path d="m7 17 4-4 4 2 5-7"/></svg></div>
-          <h3>Real numbers and charts</h3>
-          <p>Revenue, profits, and cash from real filings, plus a 12-month price chart that shows the price when you hover.</p>
+  {% if not user or user.effective_tier == 'free' %}
+    <section class="premium-pitch">
+      <div class="premium-pitch-header">
+        <p class="eyebrow">What Pro unlocks</p>
+        <h3 class="premium-pitch-title">Free shows you the data. Pro turns it into a process.</h3>
+        <p class="premium-pitch-lede">The fundamentals are free for everyone, financials, filings, charts, valuation, peers. Pay when you want the things you can't get for free anywhere else.</p>
+      </div>
+      <div class="premium-pitch-grid">
+        <div class="premium-card premium-card-featured">
+          <span class="premium-card-tag">Flagship</span>
+          <div class="premium-card-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M9.5 2A2.5 2.5 0 0 1 12 4.5v15a2.5 2.5 0 0 1-4.96.44 2.5 2.5 0 0 1-2.96-3.08 3 3 0 0 1-.34-5.58 2.5 2.5 0 0 1 1.32-4.24 2.5 2.5 0 0 1 1.98-3A2.5 2.5 0 0 1 9.5 2Z"/><path d="M14.5 2A2.5 2.5 0 0 0 12 4.5v15a2.5 2.5 0 0 0 4.96.44 2.5 2.5 0 0 0 2.96-3.08 3 3 0 0 0 .34-5.58 2.5 2.5 0 0 0-1.32-4.24 2.5 2.5 0 0 0-1.98-3A2.5 2.5 0 0 0 14.5 2Z"/></svg>
+          </div>
+          <h4>AI company brief</h4>
+          <p>Plug in any ticker. Get a plain-English 3-paragraph analyst brief, grounded on the 10-K and recent material disclosures. What the business does, what the numbers say, what's happening lately. This is what Bloomberg sells for $24k a year.</p>
         </div>
-        <div class="feature">
-          <div class="feature-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/><path d="M9 13h6"/><path d="M9 17h6"/></svg></div>
-          <h3>Direct SEC filings</h3>
-          <p>Yearly, quarterly, and event reports linked straight to the original document on the SEC's site.</p>
+        <div class="premium-card">
+          <div class="premium-card-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/><path d="M9 13h6"/><path d="M9 17h6"/></svg>
+          </div>
+          <h4>Research journal</h4>
+          <p>Save your thesis on every stock you watch. Why you're watching it, what needs to remain true, what would change your mind. Every revision is kept so you can see how your thinking evolved over months and years.</p>
         </div>
-        <div class="feature">
-          <div class="feature-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 9v4"/><path d="M12 17h.01"/><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/></svg></div>
-          <h3>Big company events</h3>
-          <p>See lawsuits, accounting changes, and other big news that can move a stock's price.</p>
+        <div class="premium-card">
+          <div class="premium-card-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg>
+          </div>
+          <h4>Custom alerts</h4>
+          <p>Price targets, P/E thresholds, volume spikes. Set a level and forget about it. We watch so you don't have to refresh the tab.</p>
         </div>
-        <div class="feature">
-          <div class="feature-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M19 21V5a2 2 0 0 0-2-2H7a2 2 0 0 0-2 2v16l7-3 7 3z"/></svg></div>
-          <h3>Build a watchlist</h3>
-          <p>Save the stocks you're following and come back to them anytime, on any device.</p>
+        <div class="premium-card">
+          <div class="premium-card-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" x2="12" y1="15" y2="3"/></svg>
+          </div>
+          <h4>PDF research notes</h4>
+          <p>Export any stock's research, plus your thesis, as a clean PDF you can share, archive, or print. The way a real analyst hands off a recommendation.</p>
         </div>
+      </div>
+      <div class="premium-pitch-footer">
+        <a href="{{ url_for('subscribe_page') }}" class="btn-primary">See plans starting at $9.99 →</a>
+        <p class="muted">{% if not user %}Free signup, no credit card. Upgrade when you want the Pro features.{% else %}You're on the free tier. Unlock the workflow when you're ready.{% endif %}</p>
       </div>
     </section>
   {% endif %}
