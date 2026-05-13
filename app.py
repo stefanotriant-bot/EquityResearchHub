@@ -2618,8 +2618,22 @@ def stripe_webhook():
     return jsonify({"received": True})
 
 
+def _stripe_to_dict(obj):
+    """Convert a Stripe API object to a plain Python dict so .get() works reliably."""
+    if obj is None:
+        return {}
+    try:
+        return json.loads(json.dumps(obj, default=str))
+    except (TypeError, ValueError):
+        try:
+            return dict(obj)
+        except (TypeError, ValueError):
+            return {}
+
+
 def _stripe_handle_checkout_completed(session_obj):
-    meta = session_obj.get("metadata") or {}
+    data = _stripe_to_dict(session_obj)
+    meta = data.get("metadata") or {}
     user_id = meta.get("user_id")
     plan = meta.get("plan")
     cycle = meta.get("cycle")
@@ -2641,7 +2655,7 @@ def _stripe_handle_checkout_completed(session_obj):
         db.commit()
         record_subscription_commission(user, "lifetime", "lifetime", LIFETIME_PRICE)
     else:
-        sub_id = session_obj.get("subscription")
+        sub_id = data.get("subscription")
         duration = timedelta(days=30) if cycle == "monthly" else timedelta(days=365)
         until = (datetime.now(tz=timezone.utc) + duration).isoformat()
         db.execute(
@@ -2655,16 +2669,21 @@ def _stripe_handle_checkout_completed(session_obj):
 
 
 def _stripe_handle_subscription_updated(sub):
-    sub_id = sub["id"]
-    status = sub["status"]
+    data = _stripe_to_dict(sub)
+    sub_id = data.get("id")
+    status = data.get("status")
+    if not sub_id:
+        return
     db = get_db()
     if status == "active":
-        period_end = datetime.fromtimestamp(sub["current_period_end"], tz=timezone.utc)
-        db.execute(
-            "UPDATE users SET subscription_until = ? WHERE stripe_subscription_id = ?",
-            (period_end.isoformat(), sub_id),
-        )
-        db.commit()
+        period_end_ts = data.get("current_period_end")
+        if period_end_ts:
+            period_end = datetime.fromtimestamp(period_end_ts, tz=timezone.utc)
+            db.execute(
+                "UPDATE users SET subscription_until = ? WHERE stripe_subscription_id = ?",
+                (period_end.isoformat(), sub_id),
+            )
+            db.commit()
     elif status in ("canceled", "incomplete_expired", "unpaid", "past_due"):
         db.execute(
             """UPDATE users SET tier='free', subscription_until=NULL, billing_cycle=NULL
@@ -2675,20 +2694,25 @@ def _stripe_handle_subscription_updated(sub):
 
 
 def _stripe_handle_subscription_deleted(sub):
+    data = _stripe_to_dict(sub)
+    sub_id = data.get("id")
+    if not sub_id:
+        return
     db = get_db()
     db.execute(
         """UPDATE users SET tier='free', subscription_until=NULL, billing_cycle=NULL
            WHERE stripe_subscription_id = ?""",
-        (sub["id"],),
+        (sub_id,),
     )
     db.commit()
 
 
 def _stripe_handle_invoice_paid(invoice):
     """Recurring monthly payment, log a commission for the affiliate (capped at 12)."""
-    if invoice.get("billing_reason") == "subscription_create":
+    data = _stripe_to_dict(invoice)
+    if data.get("billing_reason") == "subscription_create":
         return  # initial payment is handled by checkout.session.completed
-    sub_id = invoice.get("subscription")
+    sub_id = data.get("subscription")
     if not sub_id:
         return
     db = get_db()
@@ -2709,7 +2733,7 @@ def _stripe_handle_invoice_paid(invoice):
     ).fetchone()["c"]
     if existing >= COMMISSION_DURATION_MONTHS:
         return
-    gross = (invoice.get("amount_paid") or 0) / 100  # Stripe uses cents
+    gross = (data.get("amount_paid") or 0) / 100  # Stripe uses cents
     record_subscription_commission(user, user.get("tier"), "monthly", gross)
 
 
