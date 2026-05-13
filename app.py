@@ -2353,7 +2353,6 @@ def subscribe_page():
         plans=PLANS,
         lifetime_price=LIFETIME_PRICE,
         show_lifetime_offer=show_offer,
-        free_daily_lookups=FREE_DAILY_LOOKUPS,
         free_watchlist_limit=FREE_WATCHLIST_LIMIT,
     )
 
