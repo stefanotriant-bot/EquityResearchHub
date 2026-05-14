@@ -2619,16 +2619,18 @@ def stripe_webhook():
 
 
 def _stripe_to_dict(obj):
-    """Convert a Stripe API object to a plain Python dict so .get() works reliably."""
-    if obj is None:
-        return {}
-    try:
-        return json.loads(json.dumps(obj, default=str))
-    except (TypeError, ValueError):
+    """Recursively convert a Stripe API object to plain Python types so .get() works."""
+    if obj is None or isinstance(obj, (str, int, float, bool)):
+        return obj
+    if isinstance(obj, (list, tuple)):
+        return [_stripe_to_dict(v) for v in obj]
+    # Dict-like (Stripe objects support bracket access via __getitem__)
+    if hasattr(obj, "keys"):
         try:
-            return dict(obj)
-        except (TypeError, ValueError):
+            return {k: _stripe_to_dict(obj[k]) for k in list(obj.keys())}
+        except (KeyError, TypeError, AttributeError):
             return {}
+    return obj
 
 
 def _stripe_handle_checkout_completed(session_obj):
