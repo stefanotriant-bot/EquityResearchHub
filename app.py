@@ -2597,12 +2597,20 @@ def stripe_webhook():
     if not STRIPE_WEBHOOK_SECRET:
         return jsonify({"error": "Webhook secret not configured"}), 500
     try:
-        event = stripe.Webhook.construct_event(payload, sig_header, STRIPE_WEBHOOK_SECRET)
+        # Verify signature only, we'll re-parse the JSON ourselves
+        stripe.Webhook.construct_event(payload, sig_header, STRIPE_WEBHOOK_SECRET)
     except Exception as e:
         return jsonify({"error": f"Invalid signature: {e}"}), 400
 
-    etype = event["type"]
-    obj = event["data"]["object"]
+    # Parse the raw JSON ourselves so we always work with plain dicts,
+    # avoiding Stripe v8+ object quirks where .get() raises AttributeError.
+    try:
+        raw_event = json.loads(payload.decode("utf-8") if isinstance(payload, (bytes, bytearray)) else payload)
+    except (ValueError, UnicodeDecodeError) as e:
+        return jsonify({"error": f"Invalid JSON: {e}"}), 400
+
+    etype = raw_event.get("type")
+    obj = (raw_event.get("data") or {}).get("object") or {}
     try:
         if etype == "checkout.session.completed":
             _stripe_handle_checkout_completed(obj)
