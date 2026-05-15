@@ -1966,7 +1966,7 @@ COMPANY DATA:
 - Latest annual net income: {_fmt_money(net_income)}
 - Latest free cash flow: {_fmt_money(fcf)}
 - Total debt: {_fmt_money(debt)}
-- Trailing P/E: {pe:.1f if pe else "n/a"}
+- Trailing P/E: {f"{pe:.1f}" if pe else "n/a"}
 - Profit margin: {f"{profit_margin*100:.1f}%" if profit_margin else "n/a"}
 
 BUSINESS DESCRIPTION (from 10-K):
