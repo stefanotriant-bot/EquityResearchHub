@@ -1411,7 +1411,7 @@ a:hover { color: var(--accent-warm); text-decoration: underline; text-underline-
   color: #fffbef;
   margin-bottom: 4px;
 }
-.lifetime-perk-body { font-size: 13px; color: rgba(255, 251, 239, 0.72); line-height: 1.55; }
+.lifetime-perk-body { font-size: 13px; color: rgba(255, 251, 239, 0.9); line-height: 1.55; }
 .lifetime-perk-body strong { color: var(--accent-warm-soft); }
 
 .btn-lifetime {
@@ -1864,7 +1864,7 @@ a:hover { color: var(--accent-warm); text-decoration: underline; text-underline-
 }
 .stat-tile-earnings .stat-label { color: rgba(241, 213, 156, 0.75); }
 .stat-tile-earnings .stat-value { color: var(--accent-warm-soft); }
-.stat-tile-earnings .stat-sub { color: rgba(255, 251, 239, 0.55); }
+.stat-tile-earnings .stat-sub { color: rgba(255, 251, 239, 0.82); }
 
 .earnings-breakdown {
   display: grid;
@@ -2277,7 +2277,7 @@ a:hover { color: var(--accent-warm); text-decoration: underline; text-underline-
   box-shadow: var(--shadow-md);
 }
 .premium-card-featured h4 { color: #fffbef; }
-.premium-card-featured p { color: rgba(255, 251, 239, 0.75); }
+.premium-card-featured p { color: rgba(255, 251, 239, 0.92); }
 .premium-card-featured .premium-card-icon {
   background: rgba(241, 213, 156, 0.18);
   color: var(--accent-warm-soft);
