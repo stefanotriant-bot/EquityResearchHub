@@ -2277,7 +2277,7 @@ a:hover { color: var(--accent-warm); text-decoration: underline; text-underline-
   box-shadow: var(--shadow-md);
 }
 .premium-card-featured h4 { color: var(--accent-warm); }
-.premium-card-featured p { color: var(--accent-warm); }
+.premium-card-featured p { color: var(--accent-warm-soft); }
 .premium-card-featured .premium-card-icon {
   background: rgba(241, 213, 156, 0.18);
   color: var(--accent-warm-soft);
