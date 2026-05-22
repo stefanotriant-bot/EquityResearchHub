@@ -2276,8 +2276,8 @@ a:hover { color: var(--accent-warm); text-decoration: underline; text-underline-
   border-color: var(--accent-deep);
   box-shadow: var(--shadow-md);
 }
-.premium-card-featured h4 { color: #ffd966; }
-.premium-card-featured p { color: #ffe88a; }
+.premium-card-featured h4 { color: #fde047; }
+.premium-card-featured p { color: #fef08a; font-weight: 500; }
 .premium-card-featured .premium-card-icon {
   background: rgba(241, 213, 156, 0.18);
   color: var(--accent-warm-soft);
