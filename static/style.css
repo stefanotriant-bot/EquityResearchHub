@@ -3081,6 +3081,74 @@ a:hover { color: var(--accent-warm); text-decoration: underline; text-underline-
   .channels-toggle { display: inline-flex; }
 }
 
+/* ---------- Trust bar (homepage) ---------- */
+.trust-bar {
+  margin: 0 0 36px;
+  padding: 22px 28px;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-sm);
+}
+.trust-bar-inner {
+  display: flex;
+  align-items: center;
+  justify-content: space-around;
+  gap: 18px;
+  flex-wrap: wrap;
+}
+.trust-stat {
+  text-align: center;
+  min-width: 0;
+  padding: 6px 12px;
+}
+.trust-stat-value {
+  font-family: var(--font-serif);
+  font-size: 26px;
+  font-weight: 600;
+  color: var(--accent-deep);
+  letter-spacing: -0.01em;
+  line-height: 1.1;
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+}
+.trust-stat-label {
+  margin-top: 6px;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+.trust-divider {
+  width: 1px;
+  height: 42px;
+  background: var(--border);
+  flex-shrink: 0;
+}
+.trust-pulse {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: #2ea15a;
+  box-shadow: 0 0 0 0 rgba(46, 161, 90, 0.55);
+  animation: trust-pulse 2.4s ease-out infinite;
+  flex-shrink: 0;
+}
+@keyframes trust-pulse {
+  0%   { box-shadow: 0 0 0 0 rgba(46, 161, 90, 0.55); }
+  70%  { box-shadow: 0 0 0 10px rgba(46, 161, 90, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(46, 161, 90, 0); }
+}
+.trust-stat-live .trust-stat-value { color: var(--accent-deep); }
+@media (max-width: 720px) {
+  .trust-bar { padding: 18px 16px; }
+  .trust-divider { display: none; }
+  .trust-bar-inner { gap: 22px; }
+  .trust-stat-value { font-size: 22px; }
+}
+
 /* ---------- Dividends page ---------- */
 .dividends-hero { background: linear-gradient(135deg, #fdfaf2 0%, #f9f1de 100%); }
 
