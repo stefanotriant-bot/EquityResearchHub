@@ -32,7 +32,6 @@
             <a href="{{ url_for('compare_page') }}" class="nav-link {% if request.endpoint == 'compare_page' %}active{% endif %}">Compare</a>
             <a href="{{ url_for('portfolio_page') }}" class="nav-link {% if request.endpoint == 'portfolio_page' %}active{% endif %}">Portfolio</a>
             <a href="{{ url_for('alerts_page') }}" class="nav-link {% if request.endpoint == 'alerts_page' %}active{% endif %}">Alerts</a>
-            <a href="{{ url_for('community_home') }}" class="nav-link {% if request.endpoint in ['community_home','community_room'] %}active{% endif %}">Community</a>
             <a href="{{ url_for('affiliate_page') }}" class="nav-link {% if request.endpoint == 'affiliate_page' %}active{% endif %}">Affiliate</a>
             <a href="{{ url_for('subscribe_page') }}" class="nav-link {% if user.effective_tier == 'free' and not user.is_owner %}nav-link-emphasis{% endif %} {% if request.endpoint == 'subscribe_page' %}active{% endif %}">{%- if user.is_owner -%}Plans{%- elif user.effective_tier == 'free' -%}Upgrade{%- else -%}Subscription{%- endif -%}</a>
             <span class="tier-badge tier-{{ user.effective_tier }}{% if user.is_owner %} tier-owner{% endif %}{% if user.lifetime %} tier-lifetime{% endif %}">
