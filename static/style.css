@@ -3083,85 +3083,138 @@ a:hover { color: var(--accent-warm); text-decoration: underline; text-underline-
 
 /* ---------- Dividends page ---------- */
 .dividends-hero { background: linear-gradient(135deg, #fdfaf2 0%, #f9f1de 100%); }
-.dividend-section { margin-bottom: 36px; }
-.dividend-section-head { margin-bottom: 14px; }
-.dividend-section-title {
+
+.div-section { margin-bottom: 40px; }
+.div-section-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  margin-bottom: 14px;
+  padding: 0 4px;
+}
+.div-section-title {
   font-family: var(--font-serif);
-  font-size: 22px;
+  font-size: 20px;
   font-weight: 600;
   color: var(--text-primary);
-  margin-bottom: 4px;
+  margin: 0;
+  letter-spacing: -0.01em;
 }
-.dividend-section-lede {
-  font-size: 14px;
+.div-section-count {
+  font-size: 12px;
+  font-weight: 500;
   color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
 }
-.dividend-table-wrap {
+
+.div-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
   background: var(--bg-card);
   border: 1px solid var(--border);
   border-radius: var(--radius-lg);
-  overflow-x: auto;
-  box-shadow: var(--shadow-sm);
+  overflow: hidden;
 }
-.dividend-table {
-  width: 100%;
-  border-collapse: collapse;
-  font-size: 14px;
-  min-width: 760px;
-}
-.dividend-table thead th {
-  text-align: left;
-  padding: 14px 18px;
-  background: var(--bg-primary);
-  color: var(--text-muted);
-  font-weight: 600;
-  font-size: 12px;
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
+.div-row {
+  display: grid;
+  grid-template-columns: minmax(180px, 1.4fr) minmax(220px, 1.6fr) minmax(120px, 1fr);
+  align-items: center;
+  gap: 24px;
+  padding: 20px 24px;
   border-bottom: 1px solid var(--border);
-  white-space: nowrap;
+  transition: background .12s ease;
 }
-.dividend-table thead th.num { text-align: right; }
-.dividend-table tbody td {
-  padding: 16px 18px;
-  border-bottom: 1px solid var(--border);
-  color: var(--text-primary);
-  vertical-align: middle;
+.div-row:last-child { border-bottom: none; }
+.div-row:hover { background: rgba(241, 213, 156, 0.06); }
+
+.div-stock {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
 }
-.dividend-table tbody tr:last-child td { border-bottom: none; }
-.dividend-table tbody tr:hover { background: rgba(241, 213, 156, 0.08); }
-.dividend-table td.num { text-align: right; font-family: var(--font-mono); font-size: 13px; }
-.dividend-ticker {
+.div-ticker {
   font-family: var(--font-mono);
   font-weight: 700;
+  font-size: 16px;
   color: var(--accent-deep);
-  font-size: 14px;
   letter-spacing: 0.02em;
+  text-decoration: none;
+  width: fit-content;
 }
-.dividend-company {
-  color: var(--text-secondary);
+.div-ticker:hover { color: var(--accent-warm); text-decoration: none; }
+.div-company {
   font-size: 13px;
-  max-width: 220px;
+  color: var(--text-secondary);
+  white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  white-space: nowrap;
 }
-.dividend-link {
+.div-freq {
+  display: inline-block;
+  margin-top: 4px;
+  padding: 2px 8px;
+  background: var(--accent-warm-bg);
   color: var(--accent-warm);
-  font-weight: 500;
-  font-size: 13px;
-  white-space: nowrap;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  border-radius: 100px;
+  width: fit-content;
 }
-.dividend-link:hover { color: var(--accent-warm-hover); }
-.dividend-tags {
+
+.div-dates {
+  display: flex;
+  gap: 32px;
+}
+.div-date-item {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.div-date-label {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+.div-date-value {
+  font-family: var(--font-mono);
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--text-primary);
+}
+
+.div-money {
+  text-align: right;
+}
+.div-amount {
+  font-family: var(--font-serif);
+  font-size: 20px;
+  font-weight: 600;
+  color: var(--accent-deep);
+  letter-spacing: -0.01em;
+  line-height: 1.1;
+}
+.div-yield {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text-muted);
+  margin-top: 2px;
+}
+
+.div-tags {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
+  padding: 4px;
 }
-.dividend-tag {
-  display: inline-flex;
-  align-items: center;
-  padding: 6px 12px;
+.div-tag {
+  padding: 8px 14px;
   background: var(--bg-card);
   border: 1px solid var(--border);
   border-radius: 100px;
@@ -3172,49 +3225,68 @@ a:hover { color: var(--accent-warm); text-decoration: underline; text-underline-
   text-decoration: none;
   transition: all .15s ease;
 }
-.dividend-tag:hover {
+.div-tag:hover {
   background: var(--accent-warm-bg);
   border-color: var(--accent-warm);
   color: var(--accent-deep);
   text-decoration: none;
 }
-.dividend-glossary {
+
+.div-failed-note {
+  font-size: 13px;
+  color: var(--text-muted);
+  margin: 0 4px 24px;
+  font-style: italic;
+}
+
+.div-glossary {
   margin-top: 48px;
-  padding: 28px 32px;
+  padding: 32px;
   background: var(--bg-card);
   border: 1px solid var(--border);
   border-radius: var(--radius-lg);
 }
-.dividend-glossary h4 {
+.div-glossary h4 {
   font-family: var(--font-serif);
   font-size: 18px;
   font-weight: 600;
   color: var(--text-primary);
-  margin-bottom: 16px;
+  margin: 0 0 20px;
+  letter-spacing: -0.01em;
 }
-.dividend-glossary dl {
+.div-glossary-grid {
   display: grid;
-  grid-template-columns: 160px 1fr;
-  gap: 10px 24px;
-  margin-bottom: 18px;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 24px;
+  margin-bottom: 20px;
 }
-.dividend-glossary dt {
+.div-glossary-term {
   font-weight: 600;
+  font-size: 13px;
   color: var(--accent-deep);
-  font-size: 14px;
+  margin: 0 0 4px;
 }
-.dividend-glossary dd {
-  font-size: 14px;
+.div-glossary-desc {
+  font-size: 13px;
+  line-height: 1.5;
   color: var(--text-secondary);
-  line-height: 1.55;
   margin: 0;
 }
-.dividend-glossary-note {
+.div-glossary-note {
   font-size: 12px;
-  padding-top: 12px;
+  color: var(--text-muted);
+  padding-top: 18px;
   border-top: 1px dashed var(--border);
+  margin: 0;
+  line-height: 1.5;
 }
-@media (max-width: 720px) {
-  .dividend-glossary dl { grid-template-columns: 1fr; gap: 4px 0; }
-  .dividend-glossary dt { margin-top: 12px; }
+
+@media (max-width: 820px) {
+  .div-row {
+    grid-template-columns: 1fr;
+    gap: 14px;
+    padding: 18px 20px;
+  }
+  .div-money { text-align: left; }
+  .div-dates { gap: 24px; flex-wrap: wrap; }
 }

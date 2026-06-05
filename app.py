@@ -382,6 +382,18 @@ def inject_stripe_flag():
     return {"stripe_enabled": STRIPE_ENABLED}
 
 
+@app.template_filter("us_date")
+def us_date_filter(iso_date):
+    """Convert 'YYYY-MM-DD' to 'M/D/YYYY' for display."""
+    if not iso_date:
+        return None
+    try:
+        dt = datetime.strptime(str(iso_date)[:10], "%Y-%m-%d")
+        return f"{dt.month}/{dt.day}/{dt.year}"
+    except (ValueError, TypeError):
+        return iso_date
+
+
 # ============================================================================
 # AFFILIATE HELPERS
 # ============================================================================
