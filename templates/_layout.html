@@ -10,7 +10,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@500;600;700&family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}?v=4">
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}?v=5">
 </head>
 <body>
   <div class="app">
@@ -27,6 +27,7 @@
           {% if user %}
             <a href="{{ url_for('index') }}" class="nav-link {% if request.endpoint == 'index' %}active{% endif %}">Research</a>
             <a href="{{ url_for('watchlist_page') }}" class="nav-link {% if request.endpoint == 'watchlist_page' %}active{% endif %}">Watchlist</a>
+            <a href="{{ url_for('dividends_page') }}" class="nav-link {% if request.endpoint == 'dividends_page' %}active{% endif %}">Dividends</a>
             <a href="{{ url_for('journal_page') }}" class="nav-link {% if request.endpoint in ['journal_page','journal_ticker'] %}active{% endif %}">Journal</a>
             <a href="{{ url_for('compare_page') }}" class="nav-link {% if request.endpoint == 'compare_page' %}active{% endif %}">Compare</a>
             <a href="{{ url_for('portfolio_page') }}" class="nav-link {% if request.endpoint == 'portfolio_page' %}active{% endif %}">Portfolio</a>

@@ -909,6 +909,93 @@ def get_earnings_calendar(t, info):
     return out
 
 
+def get_dividend_schedule(ticker_symbol, t=None, info=None):
+    """Dividend tracking info for a single ticker: upcoming dates, last payment, frequency."""
+    try:
+        if t is None:
+            t = yf.Ticker(ticker_symbol)
+        if info is None:
+            info = t.info or {}
+    except Exception:
+        return None
+    if not info:
+        return None
+
+    def _ts_to_date(ts):
+        if not ts:
+            return None
+        try:
+            ts = int(ts)
+            if ts <= 0:
+                return None
+            return datetime.fromtimestamp(ts, tz=timezone.utc).strftime("%Y-%m-%d")
+        except Exception:
+            return None
+
+    ex_date = _ts_to_date(info.get("exDividendDate"))
+    pay_date = _ts_to_date(info.get("dividendDate"))
+    div_rate = _num(info.get("dividendRate"))
+    div_yield = _num(info.get("dividendYield"))
+    last_amt = _num(info.get("lastDividendValue"))
+    last_date = _ts_to_date(info.get("lastDividendDate"))
+    payout = _num(info.get("payoutRatio"))
+    five_yr_yield = _num(info.get("fiveYearAvgDividendYield"))
+
+    recent = []
+    frequency = None
+    try:
+        divs = t.dividends
+        if divs is not None and not divs.empty:
+            tail = divs.tail(8)
+            for ts, amount in tail.items():
+                date_str = ts.strftime("%Y-%m-%d") if hasattr(ts, "strftime") else str(ts)
+                recent.append({"date": date_str, "amount": float(amount)})
+            # Infer payout frequency from gaps between the last few dividends
+            from datetime import datetime as _dt
+            dts = []
+            for entry in recent[-5:]:
+                try:
+                    dts.append(_dt.strptime(entry["date"], "%Y-%m-%d"))
+                except Exception:
+                    pass
+            if len(dts) >= 2:
+                gaps = [(dts[i + 1] - dts[i]).days for i in range(len(dts) - 1)]
+                avg_gap = sum(gaps) / len(gaps)
+                if avg_gap < 45:
+                    frequency = "Monthly"
+                elif avg_gap < 130:
+                    frequency = "Quarterly"
+                elif avg_gap < 220:
+                    frequency = "Semi-annual"
+                else:
+                    frequency = "Annual"
+            # If yfinance lacks lastDividendValue, fall back to most recent historical row
+            if not last_amt and recent:
+                last_amt = recent[-1]["amount"]
+            if not last_date and recent:
+                last_date = recent[-1]["date"]
+    except Exception:
+        pass
+
+    pays_dividend = bool((div_rate and div_rate > 0) or last_amt)
+
+    return {
+        "ticker": ticker_symbol,
+        "company_name": info.get("shortName") or info.get("longName") or ticker_symbol,
+        "ex_date": ex_date,
+        "pay_date": pay_date,
+        "last_amount": last_amt,
+        "last_date": last_date,
+        "annual_rate": div_rate,
+        "yield_pct": div_yield,
+        "five_yr_yield": five_yr_yield,
+        "payout_ratio": payout,
+        "frequency": frequency,
+        "pays_dividend": pays_dividend,
+        "recent_dividends": recent,
+    }
+
+
 def get_esg(t):
     """Environmental, social, governance scores from yfinance."""
     try:
@@ -1390,6 +1477,66 @@ def watchlist_page():
         "watchlist.html",
         watchlist=[dict(r) for r in rows],
         free_limit=FREE_WATCHLIST_LIMIT,
+    )
+
+
+@app.route("/dividends")
+@login_required
+def dividends_page():
+    """Dividend schedule for stocks in the user's watchlist."""
+    user = current_user()
+    rows = get_db().execute(
+        """SELECT ticker FROM watchlist
+           WHERE user_id = ? ORDER BY added_at DESC""",
+        (user["id"],),
+    ).fetchall()
+
+    paying_upcoming = []
+    paying_past = []
+    non_paying = []
+    failed = []
+
+    today_iso = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+
+    for row in rows:
+        ticker = row["ticker"]
+        try:
+            data = get_dividend_schedule(ticker)
+        except Exception:
+            failed.append(ticker)
+            continue
+        if data is None:
+            failed.append(ticker)
+            continue
+        if not data["pays_dividend"]:
+            non_paying.append(data)
+            continue
+        # Bucket by whether ex-date or pay-date is still ahead
+        ex = data.get("ex_date") or ""
+        pay = data.get("pay_date") or ""
+        if (ex and ex >= today_iso) or (pay and pay >= today_iso):
+            paying_upcoming.append(data)
+        else:
+            paying_past.append(data)
+
+    def _next_event_key(d):
+        for key in ("ex_date", "pay_date", "last_date"):
+            v = d.get(key)
+            if v:
+                return v
+        return "9999-99-99"
+
+    paying_upcoming.sort(key=_next_event_key)
+    # Past payments: most recent first
+    paying_past.sort(key=lambda d: d.get("last_date") or d.get("pay_date") or "", reverse=True)
+
+    return render_template(
+        "dividends.html",
+        upcoming=paying_upcoming,
+        recent=paying_past,
+        non_paying=non_paying,
+        failed=failed,
+        watchlist_empty=(len(rows) == 0),
     )
 
 

@@ -3081,3 +3081,140 @@ a:hover { color: var(--accent-warm); text-decoration: underline; text-underline-
   .channels-toggle { display: inline-flex; }
 }
 
+/* ---------- Dividends page ---------- */
+.dividends-hero { background: linear-gradient(135deg, #fdfaf2 0%, #f9f1de 100%); }
+.dividend-section { margin-bottom: 36px; }
+.dividend-section-head { margin-bottom: 14px; }
+.dividend-section-title {
+  font-family: var(--font-serif);
+  font-size: 22px;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-bottom: 4px;
+}
+.dividend-section-lede {
+  font-size: 14px;
+  color: var(--text-muted);
+}
+.dividend-table-wrap {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  overflow-x: auto;
+  box-shadow: var(--shadow-sm);
+}
+.dividend-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 14px;
+  min-width: 760px;
+}
+.dividend-table thead th {
+  text-align: left;
+  padding: 14px 18px;
+  background: var(--bg-primary);
+  color: var(--text-muted);
+  font-weight: 600;
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  border-bottom: 1px solid var(--border);
+  white-space: nowrap;
+}
+.dividend-table thead th.num { text-align: right; }
+.dividend-table tbody td {
+  padding: 16px 18px;
+  border-bottom: 1px solid var(--border);
+  color: var(--text-primary);
+  vertical-align: middle;
+}
+.dividend-table tbody tr:last-child td { border-bottom: none; }
+.dividend-table tbody tr:hover { background: rgba(241, 213, 156, 0.08); }
+.dividend-table td.num { text-align: right; font-family: var(--font-mono); font-size: 13px; }
+.dividend-ticker {
+  font-family: var(--font-mono);
+  font-weight: 700;
+  color: var(--accent-deep);
+  font-size: 14px;
+  letter-spacing: 0.02em;
+}
+.dividend-company {
+  color: var(--text-secondary);
+  font-size: 13px;
+  max-width: 220px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.dividend-link {
+  color: var(--accent-warm);
+  font-weight: 500;
+  font-size: 13px;
+  white-space: nowrap;
+}
+.dividend-link:hover { color: var(--accent-warm-hover); }
+.dividend-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.dividend-tag {
+  display: inline-flex;
+  align-items: center;
+  padding: 6px 12px;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 100px;
+  font-family: var(--font-mono);
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  text-decoration: none;
+  transition: all .15s ease;
+}
+.dividend-tag:hover {
+  background: var(--accent-warm-bg);
+  border-color: var(--accent-warm);
+  color: var(--accent-deep);
+  text-decoration: none;
+}
+.dividend-glossary {
+  margin-top: 48px;
+  padding: 28px 32px;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+}
+.dividend-glossary h4 {
+  font-family: var(--font-serif);
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-bottom: 16px;
+}
+.dividend-glossary dl {
+  display: grid;
+  grid-template-columns: 160px 1fr;
+  gap: 10px 24px;
+  margin-bottom: 18px;
+}
+.dividend-glossary dt {
+  font-weight: 600;
+  color: var(--accent-deep);
+  font-size: 14px;
+}
+.dividend-glossary dd {
+  font-size: 14px;
+  color: var(--text-secondary);
+  line-height: 1.55;
+  margin: 0;
+}
+.dividend-glossary-note {
+  font-size: 12px;
+  padding-top: 12px;
+  border-top: 1px dashed var(--border);
+}
+@media (max-width: 720px) {
+  .dividend-glossary dl { grid-template-columns: 1fr; gap: 4px 0; }
+  .dividend-glossary dt { margin-top: 12px; }
+}

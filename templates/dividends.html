@@ -1,0 +1,136 @@
+{% extends "_layout.html" %}
+{% block title %}Dividend tracker, Equity Research Hub{% endblock %}
+{% block content %}
+  <section class="hero dividends-hero">
+    <div class="hero-inner">
+      <p class="eyebrow">Dividend tracker</p>
+      <h2 class="hero-title">When you get paid</h2>
+      <p class="hero-lede">Upcoming ex-dividend dates, payment dates, and amounts for stocks in your watchlist. Sorted by what's coming up next.</p>
+    </div>
+  </section>
+
+  {% if watchlist_empty %}
+    <div class="empty-state">
+      <div class="empty-icon">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
+      </div>
+      <h3>No stocks to track yet</h3>
+      <p>Add stocks to your watchlist, dividend-paying ones will show up here automatically.</p>
+      <a href="{{ url_for('index') }}" class="btn-primary">Research a stock</a>
+    </div>
+  {% else %}
+
+    {% if upcoming %}
+      <section class="dividend-section">
+        <div class="dividend-section-head">
+          <h3 class="dividend-section-title">Upcoming</h3>
+          <p class="dividend-section-lede">Next dividend dates for stocks you're tracking.</p>
+        </div>
+        <div class="dividend-table-wrap">
+          <table class="dividend-table">
+            <thead>
+              <tr>
+                <th>Ticker</th>
+                <th>Company</th>
+                <th>Ex-dividend</th>
+                <th>Pay date</th>
+                <th class="num">Amount</th>
+                <th class="num">Yield</th>
+                <th>Frequency</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for d in upcoming %}
+                <tr>
+                  <td><span class="dividend-ticker">{{ d.ticker }}</span></td>
+                  <td class="dividend-company">{{ d.company_name }}</td>
+                  <td>{{ d.ex_date or '—' }}</td>
+                  <td>{{ d.pay_date or '—' }}</td>
+                  <td class="num">{% if d.last_amount %}${{ '%.4f'|format(d.last_amount) }}{% else %}—{% endif %}</td>
+                  <td class="num">{% if d.yield_pct %}{{ '%.2f'|format((d.yield_pct * 100) if d.yield_pct < 1 else d.yield_pct) }}%{% else %}—{% endif %}</td>
+                  <td>{{ d.frequency or '—' }}</td>
+                  <td><a href="{{ url_for('index') }}?ticker={{ d.ticker }}" class="dividend-link">Research →</a></td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </section>
+    {% endif %}
+
+    {% if recent %}
+      <section class="dividend-section">
+        <div class="dividend-section-head">
+          <h3 class="dividend-section-title">Most recently paid</h3>
+          <p class="dividend-section-lede">Last dividend on record for stocks without a scheduled next payment.</p>
+        </div>
+        <div class="dividend-table-wrap">
+          <table class="dividend-table">
+            <thead>
+              <tr>
+                <th>Ticker</th>
+                <th>Company</th>
+                <th>Last paid</th>
+                <th class="num">Last amount</th>
+                <th class="num">Annual rate</th>
+                <th class="num">Yield</th>
+                <th>Frequency</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for d in recent %}
+                <tr>
+                  <td><span class="dividend-ticker">{{ d.ticker }}</span></td>
+                  <td class="dividend-company">{{ d.company_name }}</td>
+                  <td>{{ d.last_date or '—' }}</td>
+                  <td class="num">{% if d.last_amount %}${{ '%.4f'|format(d.last_amount) }}{% else %}—{% endif %}</td>
+                  <td class="num">{% if d.annual_rate %}${{ '%.2f'|format(d.annual_rate) }}{% else %}—{% endif %}</td>
+                  <td class="num">{% if d.yield_pct %}{{ '%.2f'|format((d.yield_pct * 100) if d.yield_pct < 1 else d.yield_pct) }}%{% else %}—{% endif %}</td>
+                  <td>{{ d.frequency or '—' }}</td>
+                  <td><a href="{{ url_for('index') }}?ticker={{ d.ticker }}" class="dividend-link">Research →</a></td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </section>
+    {% endif %}
+
+    {% if non_paying %}
+      <section class="dividend-section">
+        <div class="dividend-section-head">
+          <h3 class="dividend-section-title">Doesn't pay a dividend</h3>
+          <p class="dividend-section-lede">Stocks in your watchlist that don't currently pay a dividend.</p>
+        </div>
+        <div class="dividend-tags">
+          {% for d in non_paying %}
+            <a href="{{ url_for('index') }}?ticker={{ d.ticker }}" class="dividend-tag">{{ d.ticker }}</a>
+          {% endfor %}
+        </div>
+      </section>
+    {% endif %}
+
+    {% if failed %}
+      <section class="dividend-section">
+        <p class="muted">Couldn't load dividend data for: {{ failed|join(', ') }}</p>
+      </section>
+    {% endif %}
+
+    <section class="dividend-glossary">
+      <h4>The dividend lifecycle, plain English</h4>
+      <dl>
+        <dt>Declaration date</dt>
+        <dd>The day the company's board announces the next dividend (amount, ex-date, record date, pay date). Usually delivered through a press release or 8-K filing.</dd>
+        <dt>Ex-dividend date</dt>
+        <dd>The first day a stock trades <em>without</em> the right to the next dividend. To collect this payment you must own the stock by the close of the day <em>before</em> the ex-date.</dd>
+        <dt>Record date</dt>
+        <dd>The day the company checks its shareholder roster. Usually one business day after the ex-dividend date.</dd>
+        <dt>Pay date</dt>
+        <dd>The day the cash actually shows up in your brokerage account. Typically two to four weeks after the record date.</dd>
+      </dl>
+      <p class="dividend-glossary-note muted">Dividend data sourced from Yahoo Finance. Declaration dates aren't reliably available through this feed, check the company's investor relations page for the official announcement.</p>
+    </section>
+  {% endif %}
+{% endblock %}
