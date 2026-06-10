@@ -52,6 +52,93 @@
     </div>
   </form>
 
+  {% if note and scorecard and scorecard.conditions %}
+    <section class="scorecard">
+      <div class="scorecard-head">
+        <div>
+          <h3 class="scorecard-title">Thesis scorecard</h3>
+          <p class="scorecard-lede">Mark each condition as <strong>intact</strong>, <strong>weakening</strong>, or <strong>broken</strong> at every earnings. The health score is the average.</p>
+        </div>
+        {% if scorecard.score is not none %}
+          <div class="scorecard-score scorecard-tier-{{ scorecard.tier }}">
+            <div class="scorecard-score-value">{{ scorecard.score }}<span class="scorecard-score-pct">%</span></div>
+            <div class="scorecard-score-label">{% if scorecard.tier == 'healthy' %}Healthy{% elif scorecard.tier == 'watch' %}Watch{% else %}Compromised{% endif %}</div>
+            <div class="scorecard-score-meta">{{ scorecard.answered }}/{{ scorecard.total }} marked</div>
+          </div>
+        {% else %}
+          <div class="scorecard-score scorecard-tier-empty">
+            <div class="scorecard-score-value">—</div>
+            <div class="scorecard-score-label">Not checked yet</div>
+          </div>
+        {% endif %}
+      </div>
+      <ul class="scorecard-list" data-note-id="{{ note.id }}">
+        {% for c in scorecard.conditions %}
+          <li class="scorecard-row" data-condition-id="{{ c.id }}" data-status="{{ c.status or '' }}">
+            <div class="scorecard-row-text">{{ c.text }}</div>
+            <div class="scorecard-row-controls" role="radiogroup" aria-label="Condition status">
+              <button type="button" class="scorecard-btn scorecard-btn-intact {% if c.status == 'intact' %}active{% endif %}" data-status="intact" aria-pressed="{{ 'true' if c.status == 'intact' else 'false' }}">Intact</button>
+              <button type="button" class="scorecard-btn scorecard-btn-weakening {% if c.status == 'weakening' %}active{% endif %}" data-status="weakening" aria-pressed="{{ 'true' if c.status == 'weakening' else 'false' }}">Weakening</button>
+              <button type="button" class="scorecard-btn scorecard-btn-broken {% if c.status == 'broken' %}active{% endif %}" data-status="broken" aria-pressed="{{ 'true' if c.status == 'broken' else 'false' }}">Broken</button>
+            </div>
+            {% if c.checked_at %}
+              <div class="scorecard-row-meta">Last marked {{ c.checked_at[:10] }}</div>
+            {% endif %}
+          </li>
+        {% endfor %}
+      </ul>
+    </section>
+  {% elif note %}
+    <section class="scorecard scorecard-hint">
+      <p class="muted">Add one condition per line in <strong>"What needs to remain true?"</strong> above to enable the thesis scorecard. Each line becomes a condition you can track over time.</p>
+    </section>
+  {% endif %}
+
+  {% if note %}
+    <section class="checklist">
+      <details class="checklist-details" {% if not checklist_saved %}open{% endif %}>
+        <summary class="checklist-summary">
+          <span class="checklist-summary-title">Pre-buy checklist</span>
+          <span class="checklist-summary-meta">
+            {% if checklist_saved %}
+              <span class="checklist-saved-pill">{{ checklist_saved.answers|length }}/10 answered</span>
+            {% else %}
+              10 questions to gate your buy decision
+            {% endif %}
+          </span>
+        </summary>
+        <p class="checklist-lede">A 10-question gate covering moat, debt, alignment, valuation, and catalyst. Fill it out before you log a buy, exit, or pass to force yourself to actually think.</p>
+        <ol class="checklist-list" data-note-id="{{ note.id }}">
+          {% for q in checklist_questions %}
+            {% set saved = (checklist_saved.answers.get(q.key) if checklist_saved else None) %}
+            <li class="checklist-q" data-key="{{ q.key }}">
+              <div class="checklist-q-head">
+                <span class="checklist-q-num">{{ loop.index }}</span>
+                <div>
+                  <span class="checklist-q-theme">{{ q.theme }}</span>
+                  <p class="checklist-q-text">{{ q.text }}</p>
+                </div>
+              </div>
+              <div class="checklist-q-answers" role="radiogroup">
+                <button type="button" class="checklist-btn checklist-btn-pass {% if saved and saved.answer == 'pass' %}active{% endif %}" data-answer="pass">Pass</button>
+                <button type="button" class="checklist-btn checklist-btn-concern {% if saved and saved.answer == 'concern' %}active{% endif %}" data-answer="concern">Concern</button>
+                <button type="button" class="checklist-btn checklist-btn-fail {% if saved and saved.answer == 'fail' %}active{% endif %}" data-answer="fail">Fail</button>
+                <button type="button" class="checklist-btn checklist-btn-unknown {% if saved and saved.answer == 'unknown' %}active{% endif %}" data-answer="unknown">Don't know</button>
+              </div>
+              <input type="text" class="checklist-q-note" placeholder="Optional note" maxlength="400" value="{{ saved.note if saved and saved.note else '' }}">
+            </li>
+          {% endfor %}
+        </ol>
+        <div class="checklist-actions">
+          <button type="button" id="saveChecklistBtn" class="btn-primary">Save checklist</button>
+          {% if checklist_saved %}
+            <span class="checklist-saved-note muted">Saved {{ checklist_saved.savedAt[:10] }}</span>
+          {% endif %}
+        </div>
+      </details>
+    </section>
+  {% endif %}
+
   {% if revisions %}
     <section class="affiliate-section">
       <div class="affiliate-section-header">
@@ -114,6 +201,123 @@ if (delBtn) {
     if (!confirm('Delete this entire thesis entry? This cannot be undone.')) return;
     const res = await fetch('/api/journal/{{ note.id if note else 0 }}', {method: 'DELETE'});
     if (res.ok) window.location.href = '/journal';
+  });
+}
+
+// ----- Thesis scorecard: mark condition status -----
+const scoreList = document.querySelector('.scorecard-list');
+if (scoreList) {
+  const noteId = scoreList.dataset.noteId;
+  scoreList.addEventListener('click', async (e) => {
+    const btn = e.target.closest('.scorecard-btn');
+    if (!btn) return;
+    const row = btn.closest('.scorecard-row');
+    if (!row) return;
+    const conditionId = row.dataset.conditionId;
+    const status = btn.dataset.status;
+    // Optimistic UI: highlight the chosen button
+    row.querySelectorAll('.scorecard-btn').forEach(b => {
+      b.classList.toggle('active', b === btn);
+      b.setAttribute('aria-pressed', b === btn ? 'true' : 'false');
+    });
+    row.dataset.status = status;
+    try {
+      const res = await fetch(`/api/journal/${noteId}/check`, {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({conditionId, status}),
+      });
+      const data = await res.json();
+      if (!data.success) {
+        alert(data.error || 'Could not save.');
+        return;
+      }
+      // Recompute and update the visible health score without reloading
+      updateScorecardHeader();
+    } catch (err) {
+      alert('Network error: ' + err.message);
+    }
+  });
+}
+
+function updateScorecardHeader() {
+  const rows = document.querySelectorAll('.scorecard-row');
+  if (!rows.length) return;
+  const weights = {intact: 1.0, weakening: 0.5, broken: 0.0};
+  let total = 0;
+  let answered = 0;
+  rows.forEach(r => {
+    const s = r.dataset.status;
+    if (s in weights) { total += weights[s]; answered++; }
+  });
+  const score = Math.round((total / rows.length) * 100);
+  const scoreBox = document.querySelector('.scorecard-score');
+  if (!scoreBox) return;
+  if (answered === 0) {
+    scoreBox.className = 'scorecard-score scorecard-tier-empty';
+    scoreBox.innerHTML = '<div class="scorecard-score-value">—</div><div class="scorecard-score-label">Not checked yet</div>';
+    return;
+  }
+  let tier = 'healthy';
+  if (score < 50) tier = 'compromised';
+  else if (score < 80) tier = 'watch';
+  const label = tier === 'healthy' ? 'Healthy' : tier === 'watch' ? 'Watch' : 'Compromised';
+  scoreBox.className = `scorecard-score scorecard-tier-${tier}`;
+  scoreBox.innerHTML =
+    `<div class="scorecard-score-value">${score}<span class="scorecard-score-pct">%</span></div>` +
+    `<div class="scorecard-score-label">${label}</div>` +
+    `<div class="scorecard-score-meta">${answered}/${rows.length} marked</div>`;
+}
+
+// ----- Pre-buy checklist: select an answer per question -----
+document.querySelectorAll('.checklist-q-answers').forEach(group => {
+  group.addEventListener('click', (e) => {
+    const btn = e.target.closest('.checklist-btn');
+    if (!btn) return;
+    group.querySelectorAll('.checklist-btn').forEach(b => b.classList.toggle('active', b === btn));
+  });
+});
+
+const saveChecklistBtn = document.getElementById('saveChecklistBtn');
+if (saveChecklistBtn) {
+  saveChecklistBtn.addEventListener('click', async () => {
+    const list = document.querySelector('.checklist-list');
+    if (!list) return;
+    const noteId = list.dataset.noteId;
+    const answers = {};
+    list.querySelectorAll('.checklist-q').forEach(q => {
+      const key = q.dataset.key;
+      const active = q.querySelector('.checklist-btn.active');
+      const noteInput = q.querySelector('.checklist-q-note');
+      if (active) {
+        answers[key] = {
+          answer: active.dataset.answer,
+          note: noteInput ? noteInput.value : '',
+        };
+      }
+    });
+    saveChecklistBtn.disabled = true;
+    saveChecklistBtn.textContent = 'Saving…';
+    try {
+      const res = await fetch(`/api/journal/${noteId}/checklist`, {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({answers}),
+      });
+      const data = await res.json();
+      if (data.success) {
+        saveChecklistBtn.textContent = 'Saved';
+        setTimeout(() => location.reload(), 600);
+      } else {
+        alert(data.error || 'Could not save.');
+        saveChecklistBtn.disabled = false;
+        saveChecklistBtn.textContent = 'Save checklist';
+      }
+    } catch (err) {
+      alert('Network error: ' + err.message);
+      saveChecklistBtn.disabled = false;
+      saveChecklistBtn.textContent = 'Save checklist';
+    }
   });
 }
 </script>

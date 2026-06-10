@@ -254,6 +254,16 @@ def init_db():
             used_at TEXT DEFAULT CURRENT_TIMESTAMP
         );
         CREATE INDEX IF NOT EXISTS idx_brief_usage_user ON ai_brief_usage(user_id, used_at);
+        CREATE TABLE IF NOT EXISTS thesis_checks (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            note_id INTEGER NOT NULL,
+            condition_id TEXT NOT NULL,
+            status TEXT NOT NULL,
+            note TEXT,
+            checked_at TEXT DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (note_id) REFERENCES research_notes(id) ON DELETE CASCADE
+        );
+        CREATE INDEX IF NOT EXISTS idx_checks_note_cond ON thesis_checks(note_id, condition_id, checked_at);
     """)
     # Lightweight migrations for existing DBs
     cur = db.execute("PRAGMA table_info(users)")
@@ -280,6 +290,11 @@ def init_db():
         db.execute("ALTER TABLE watchlist ADD COLUMN shares REAL")
     if "avg_cost" not in wcols:
         db.execute("ALTER TABLE watchlist ADD COLUMN avg_cost REAL")
+    # Pre-buy checklist stored as JSON on the research note
+    cur = db.execute("PRAGMA table_info(research_notes)")
+    ncols = {row[1] for row in cur}
+    if "checklist_json" not in ncols:
+        db.execute("ALTER TABLE research_notes ADD COLUMN checklist_json TEXT")
     # Seed default chat rooms
     for i, (slug, name, category, tier_req, desc) in enumerate(DEFAULT_ROOMS):
         db.execute(
@@ -2268,23 +2283,124 @@ def journal_page():
 def journal_ticker(ticker):
     user = current_user()
     raw = (ticker or "").strip().upper()
-    note = get_db().execute(
+    db = get_db()
+    note = db.execute(
         "SELECT * FROM research_notes WHERE user_id = ? AND ticker = ?",
         (user["id"], raw),
     ).fetchone()
     revisions = []
+    scorecard = None
+    checklist_saved = None
     if note:
-        revisions = get_db().execute(
+        revisions = db.execute(
             "SELECT id, snapshot, saved_at FROM note_revisions WHERE note_id = ? ORDER BY saved_at DESC LIMIT 20",
             (note["id"],),
         ).fetchall()
         revisions = [dict(r) for r in revisions]
+        scorecard = get_scorecard(db, note["id"], note["what_must_be_true"])
+        if note["checklist_json"]:
+            try:
+                checklist_saved = json.loads(note["checklist_json"])
+            except (ValueError, TypeError):
+                checklist_saved = None
     return render_template(
         "journal_entry.html",
         ticker=raw,
         note=dict(note) if note else None,
         revisions=revisions,
+        scorecard=scorecard,
+        checklist_questions=PREBUY_QUESTIONS,
+        checklist_saved=checklist_saved,
     )
+
+
+# Ten-question pre-buy gate. Order matters; index is the id we save against.
+PREBUY_QUESTIONS = [
+    {"key": "moat", "theme": "Moat", "text": "What's the durable advantage? (brand, scale, network effect, switching cost, IP)"},
+    {"key": "revenue_quality", "theme": "Revenue quality", "text": "Is revenue recurring or contracted, vs. one-off or cyclical?"},
+    {"key": "debt", "theme": "Balance sheet", "text": "Is debt manageable vs. earnings? (Debt/EBITDA under 3x preferred)"},
+    {"key": "insider_alignment", "theme": "Alignment", "text": "Are insiders buying or selling over the last 6 months?"},
+    {"key": "valuation_history", "theme": "Valuation", "text": "Is current P/E below the stock's 5-year average?"},
+    {"key": "capital_allocation", "theme": "Capital allocation", "text": "Is management buying back stock at low prices? Are dividends sustainable?"},
+    {"key": "fcf", "theme": "Cash generation", "text": "Is free cash flow positive and growing? FCF yield above 5%?"},
+    {"key": "headwinds", "theme": "Industry risk", "text": "Are there structural headwinds in the next 5 years (regulatory, tech, demographic)?"},
+    {"key": "earnings_quality", "theme": "Earnings quality", "text": "Does reported EPS match cash flow? (no accrual games)"},
+    {"key": "catalyst", "theme": "Catalyst", "text": "What specific event in the next 12 months could rerate this stock?"},
+]
+PREBUY_ANSWER_VALUES = ("pass", "concern", "fail", "unknown")
+
+
+def _condition_id_for_text(text):
+    """Stable id for a condition line, so check history survives small edits to other lines."""
+    normalized = (text or "").strip().lower()
+    return hashlib.md5(normalized.encode("utf-8")).hexdigest()[:16]
+
+
+def get_scorecard(db, note_id, what_must_be_true_text):
+    """Parse condition lines from the note, layer in latest checks, compute health score."""
+    lines = [ln.strip() for ln in (what_must_be_true_text or "").splitlines() if ln.strip()]
+    if not lines:
+        return {"conditions": [], "score": None, "tier": None, "checked_at": None}
+
+    # Pull most recent check per condition_id for this note
+    rows = db.execute(
+        """SELECT condition_id, status, note, checked_at
+           FROM thesis_checks
+           WHERE note_id = ?
+           ORDER BY checked_at DESC""",
+        (note_id,),
+    ).fetchall()
+    latest = {}
+    for r in rows:
+        if r["condition_id"] not in latest:
+            latest[r["condition_id"]] = dict(r)
+
+    weights = {"intact": 1.0, "weakening": 0.5, "broken": 0.0}
+    conditions = []
+    total_weight = 0.0
+    weighted_count = 0
+    most_recent_check = None
+
+    for i, text in enumerate(lines):
+        cid = _condition_id_for_text(text)
+        check = latest.get(cid)
+        status = check["status"] if check else None
+        checked_at = check["checked_at"] if check else None
+        note_text = check["note"] if check else None
+        if status in weights:
+            total_weight += weights[status]
+            weighted_count += 1
+        if checked_at and (most_recent_check is None or checked_at > most_recent_check):
+            most_recent_check = checked_at
+        conditions.append({
+            "id": cid,
+            "index": i,
+            "text": text,
+            "status": status,           # None | 'intact' | 'weakening' | 'broken'
+            "checked_at": checked_at,
+            "note": note_text,
+        })
+
+    if weighted_count == 0:
+        score = None
+        tier = None
+    else:
+        score = round((total_weight / len(lines)) * 100)
+        if score >= 80:
+            tier = "healthy"
+        elif score >= 50:
+            tier = "watch"
+        else:
+            tier = "compromised"
+
+    return {
+        "conditions": conditions,
+        "score": score,
+        "tier": tier,
+        "checked_at": most_recent_check,
+        "answered": weighted_count,
+        "total": len(lines),
+    }
 
 
 @app.route("/api/journal", methods=["GET", "POST"])
@@ -2378,6 +2494,73 @@ def api_journal():
         note_id = cur.lastrowid
     db.commit()
     return jsonify({"success": True, "id": note_id, "ticker": ticker})
+
+
+@app.route("/api/journal/<int:note_id>/check", methods=["POST"])
+@login_required
+def api_thesis_check(note_id):
+    """Record a condition status: intact / weakening / broken."""
+    user = current_user()
+    db = get_db()
+    note = db.execute(
+        "SELECT id, user_id FROM research_notes WHERE id = ?",
+        (note_id,),
+    ).fetchone()
+    if not note or note["user_id"] != user["id"]:
+        return jsonify({"error": "Not found."}), 404
+    data = request.get_json(silent=True) or {}
+    condition_id = (data.get("conditionId") or "").strip()
+    status = (data.get("status") or "").strip().lower()
+    check_note = (data.get("note") or "").strip()[:500]
+    if not re.fullmatch(r"[a-f0-9]{16}", condition_id):
+        return jsonify({"error": "Invalid condition."}), 400
+    if status not in ("intact", "weakening", "broken"):
+        return jsonify({"error": "Invalid status."}), 400
+    db.execute(
+        "INSERT INTO thesis_checks (note_id, condition_id, status, note) VALUES (?, ?, ?, ?)",
+        (note_id, condition_id, status, check_note),
+    )
+    db.commit()
+    return jsonify({"success": True})
+
+
+@app.route("/api/journal/<int:note_id>/checklist", methods=["POST"])
+@login_required
+def api_prebuy_checklist(note_id):
+    """Save the 10-question pre-buy checklist for a journal entry."""
+    user = current_user()
+    db = get_db()
+    note = db.execute(
+        "SELECT id, user_id FROM research_notes WHERE id = ?",
+        (note_id,),
+    ).fetchone()
+    if not note or note["user_id"] != user["id"]:
+        return jsonify({"error": "Not found."}), 404
+    data = request.get_json(silent=True) or {}
+    answers_in = data.get("answers") or {}
+    if not isinstance(answers_in, dict):
+        return jsonify({"error": "Invalid answers."}), 400
+
+    valid_keys = {q["key"] for q in PREBUY_QUESTIONS}
+    clean = {}
+    for q in PREBUY_QUESTIONS:
+        entry = answers_in.get(q["key"]) or {}
+        if not isinstance(entry, dict):
+            continue
+        ans = (entry.get("answer") or "").strip().lower()
+        note_text = (entry.get("note") or "").strip()[:400]
+        if ans in PREBUY_ANSWER_VALUES:
+            clean[q["key"]] = {"answer": ans, "note": note_text}
+    payload = {
+        "answers": clean,
+        "savedAt": datetime.now(tz=timezone.utc).isoformat(),
+    }
+    db.execute(
+        "UPDATE research_notes SET checklist_json = ? WHERE id = ?",
+        (json.dumps(payload), note_id),
+    )
+    db.commit()
+    return jsonify({"success": True, "savedAt": payload["savedAt"]})
 
 
 @app.route("/api/journal/<int:note_id>", methods=["DELETE"])
