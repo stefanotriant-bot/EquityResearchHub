@@ -134,28 +134,89 @@ function render(d) {
     el.headerMeta.innerHTML = `Last updated <strong>${fmt.rel(d.fetchedAt)}</strong>`;
   }
 
-  el.results.innerHTML = [
-    renderCompanyHero(d),
+  // Group sections into 4 focused tabs so the page isn't a wall of data
+  const overviewHTML = [
     renderAIBriefSection(d),
-    renderQuoteSection(d),
     renderHistorySection(d),
-    renderForecastsSection(d),
+    renderNewsSection(d),
     renderEarningsCalendarSection(d),
+  ].join('');
+  const numbersHTML = [
     renderFinancialsSection(d),
     renderValuationSection(d),
+    renderForecastsSection(d),
+    renderDCFSection(d),
+  ].join('');
+  const marketHTML = [
     renderPeersSection(d),
     renderSectorSection(d),
     renderAnalystSection(d),
+    renderHoldersSection(d),
     renderESGSection(d),
+  ].join('');
+  const filingsHTML = [
     renderFilingsSection(d),
     renderCapitalEventsSection(d),
     renderLegalSection(d),
-    renderHoldersSection(d),
-    renderNewsSection(d),
-    renderDCFSection(d),
+  ].join('');
+
+  const tabsHTML = `
+    <div class="result-tabs">
+      <nav class="result-tabnav" role="tablist" aria-label="Research sections">
+        <button type="button" class="result-tab active" data-tab="overview" role="tab" aria-selected="true">
+          <span class="result-tab-label">Overview</span>
+          <span class="result-tab-sub">What's happening</span>
+        </button>
+        <button type="button" class="result-tab" data-tab="numbers" role="tab" aria-selected="false">
+          <span class="result-tab-label">Numbers</span>
+          <span class="result-tab-sub">Financials &amp; valuation</span>
+        </button>
+        <button type="button" class="result-tab" data-tab="market" role="tab" aria-selected="false">
+          <span class="result-tab-label">Market view</span>
+          <span class="result-tab-sub">Peers, analysts, holders</span>
+        </button>
+        <button type="button" class="result-tab" data-tab="filings" role="tab" aria-selected="false">
+          <span class="result-tab-label">Filings</span>
+          <span class="result-tab-sub">SEC &amp; events</span>
+        </button>
+      </nav>
+      <div class="result-tabpanel active" data-tab="overview" role="tabpanel">${overviewHTML}</div>
+      <div class="result-tabpanel" data-tab="numbers" role="tabpanel">${numbersHTML}</div>
+      <div class="result-tabpanel" data-tab="market" role="tabpanel">${marketHTML}</div>
+      <div class="result-tabpanel" data-tab="filings" role="tabpanel">${filingsHTML}</div>
+    </div>
+  `;
+
+  el.results.innerHTML = [
+    renderCompanyHero(d),
+    renderQuoteSection(d),
+    tabsHTML,
     renderExportSection(d),
     renderLockedFeatures(d),
   ].join('');
+
+  // Wire tab switching
+  const tabs = el.results.querySelectorAll('.result-tab');
+  const panels = el.results.querySelectorAll('.result-tabpanel');
+  tabs.forEach(tab => {
+    tab.addEventListener('click', () => {
+      const target = tab.dataset.tab;
+      tabs.forEach(t => {
+        const isActive = t === tab;
+        t.classList.toggle('active', isActive);
+        t.setAttribute('aria-selected', isActive ? 'true' : 'false');
+      });
+      panels.forEach(p => p.classList.toggle('active', p.dataset.tab === target));
+      // Keep the tab nav visible after switching (in case user was scrolled down)
+      const nav = el.results.querySelector('.result-tabnav');
+      if (nav) {
+        const navTop = nav.getBoundingClientRect().top + window.scrollY;
+        if (window.scrollY > navTop - 20) {
+          window.scrollTo({ top: navTop - 80, behavior: 'smooth' });
+        }
+      }
+    });
+  });
 
   // Wire summary expand toggle
   const toggle = el.results.querySelector('.summary-toggle');

@@ -305,6 +305,73 @@ a:hover { color: var(--accent-warm); text-decoration: underline; text-underline-
   font-weight: 500;
 }
 
+/* ---------- Result tabs (groups research sections) ---------- */
+.result-tabs { display: flex; flex-direction: column; gap: 0; }
+.result-tabnav {
+  display: flex;
+  gap: 4px;
+  padding: 6px;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-sm);
+  position: sticky;
+  top: 12px;
+  z-index: 5;
+  margin-bottom: 28px;
+  overflow-x: auto;
+  scrollbar-width: thin;
+}
+.result-tabnav::-webkit-scrollbar { height: 4px; }
+.result-tabnav::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+.result-tab {
+  flex: 1 1 0;
+  min-width: 140px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  padding: 12px 18px;
+  background: transparent;
+  border: none;
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  font-family: var(--font-sans);
+  text-align: left;
+  transition: all .15s ease;
+}
+.result-tab:hover { background: var(--bg-card-warm); }
+.result-tab.active {
+  background: linear-gradient(180deg, var(--accent-deep) 0%, #1a322f 100%);
+  box-shadow: 0 2px 8px rgba(31, 58, 54, 0.18);
+}
+.result-tab-label {
+  font-family: var(--font-serif);
+  font-size: 17px;
+  font-weight: 600;
+  color: var(--text-primary);
+  letter-spacing: -0.01em;
+  line-height: 1.1;
+}
+.result-tab.active .result-tab-label { color: #fdfaf2; }
+.result-tab-sub {
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+.result-tab.active .result-tab-sub { color: var(--accent-warm-soft); }
+.result-tabpanel { display: none; flex-direction: column; gap: 36px; }
+.result-tabpanel.active { display: flex; }
+
+@media (max-width: 720px) {
+  .result-tabnav { padding: 4px; gap: 2px; }
+  .result-tab { min-width: 120px; padding: 10px 14px; }
+  .result-tab-label { font-size: 15px; }
+  .result-tab-sub { font-size: 10px; }
+}
+
 /* ---------- Company hero / quote card ---------- */
 .company-hero {
   background: linear-gradient(135deg, #fdfaf2 0%, #f9f1de 100%);
