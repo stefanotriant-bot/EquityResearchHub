@@ -273,20 +273,27 @@ a:hover { color: var(--accent-warm); text-decoration: underline; text-underline-
 }
 
 /* ---------- Results ---------- */
-.results { display: flex; flex-direction: column; gap: 28px; padding-top: 24px; }
+.results {
+  display: flex;
+  flex-direction: column;
+  gap: 36px;
+  padding-top: 24px;
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: 'tnum';
+}
 
 .section {
   background: var(--bg-card);
   border: 1px solid var(--border);
   border-radius: var(--radius-lg);
-  padding: 32px;
+  padding: 36px;
   box-shadow: var(--shadow-sm);
 }
-.section-header { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 22px; gap: 16px; flex-wrap: wrap; }
+.section-header { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 26px; gap: 16px; flex-wrap: wrap; }
 .section-title {
   font-family: var(--font-serif);
   font-weight: 600;
-  font-size: 22px;
+  font-size: 24px;
   color: var(--text-primary);
   letter-spacing: -0.01em;
 }
@@ -365,10 +372,11 @@ a:hover { color: var(--accent-warm); text-decoration: underline; text-underline-
 }
 .tag-deep { background: var(--accent-deep-soft); color: var(--accent-deep); border-color: transparent; }
 .summary-text {
-  font-size: 15px;
-  color: var(--text-secondary);
-  line-height: 1.7;
-  max-width: 640px;
+  font-size: 16px;
+  color: var(--text-primary);
+  line-height: 1.75;
+  max-width: 680px;
+  font-weight: 400;
 }
 .summary-text.collapsed { display: -webkit-box; -webkit-line-clamp: 4; -webkit-box-orient: vertical; overflow: hidden; }
 .summary-toggle {
@@ -451,36 +459,39 @@ a:hover { color: var(--accent-warm); text-decoration: underline; text-underline-
 /* ---------- Stat grids ---------- */
 .stat-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-  gap: 16px;
+  grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+  gap: 18px;
 }
 .stat-tile {
   background: var(--bg-card-warm);
   border: 1px solid var(--border-soft);
   border-radius: var(--radius-md);
-  padding: 16px 18px;
+  padding: 20px 22px;
   transition: all .2s ease;
 }
 .stat-tile:hover { border-color: var(--border-strong); box-shadow: var(--shadow-sm); transform: translateY(-1px); }
 .stat-label {
-  font-size: 11px;
-  color: var(--text-muted);
+  font-size: 12px;
+  color: var(--text-secondary);
   text-transform: uppercase;
   letter-spacing: 0.1em;
   font-weight: 600;
-  margin-bottom: 6px;
+  margin-bottom: 8px;
 }
 .stat-value {
   font-family: var(--font-serif);
-  font-size: 22px;
-  font-weight: 500;
+  font-size: 26px;
+  font-weight: 600;
   color: var(--text-primary);
-  letter-spacing: -0.01em;
+  letter-spacing: -0.015em;
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: 'tnum';
+  line-height: 1.15;
 }
 .stat-sub {
-  font-size: 12px;
-  color: var(--text-muted);
-  margin-top: 2px;
+  font-size: 13px;
+  color: var(--text-secondary);
+  margin-top: 4px;
   font-family: var(--font-mono);
 }
 
@@ -761,24 +772,24 @@ a:hover { color: var(--accent-warm); text-decoration: underline; text-underline-
 .news-publisher { font-weight: 500; color: var(--accent-deep); }
 
 /* ---------- Holders ---------- */
-.holders-table { width: 100%; border-collapse: collapse; font-size: 14px; }
+.holders-table { width: 100%; border-collapse: collapse; font-size: 14.5px; font-variant-numeric: tabular-nums; font-feature-settings: 'tnum'; }
 .holders-table th {
   text-align: left;
-  font-size: 11px;
+  font-size: 12px;
   text-transform: uppercase;
   letter-spacing: 0.1em;
-  color: var(--text-muted);
-  font-weight: 600;
+  color: var(--text-secondary);
+  font-weight: 700;
   padding: 10px 12px;
   border-bottom: 1px solid var(--border);
 }
 .holders-table th.right { text-align: right; }
 .holders-table td {
-  padding: 12px;
+  padding: 14px 12px;
   border-bottom: 1px solid var(--border-soft);
-  color: var(--text-secondary);
+  color: var(--text-primary);
 }
-.holders-table td.right { text-align: right; font-family: var(--font-mono); }
+.holders-table td.right { text-align: right; font-family: var(--font-mono); font-size: 13.5px; }
 .holders-table tr:hover td { background: var(--bg-card-warm); }
 .holders-table .holder-name { color: var(--text-primary); font-weight: 500; }
 
